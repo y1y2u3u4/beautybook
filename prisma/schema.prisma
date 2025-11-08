@@ -1,0 +1,257 @@
+// Prisma Schema for BeautyBook
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model (synced with Clerk)
+model User {
+  id            String   @id @default(cuid())
+  clerkId       String   @unique
+  email         String   @unique
+  firstName     String?
+  lastName      String?
+  imageUrl      String?
+  role          UserRole @default(CUSTOMER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  customerProfile CustomerProfile?
+  providerProfile ProviderProfile?
+  appointments    Appointment[]
+  reviews         Review[]
+  favorites       Favorite[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+// Customer Profile
+model CustomerProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone         String?
+  dateOfBirth   DateTime?
+  address       String?
+  city          String?
+  state         String?
+  zipCode       String?
+
+  // Medical History
+  medicalHistory Json?
+  allergies      String[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("customer_profiles")
+}
+
+// Provider Profile
+model ProviderProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Basic Info
+  businessName    String
+  title           String
+  bio             String   @db.Text
+  phone           String
+  verified        Boolean  @default(false)
+
+  // Location
+  address         String
+  city            String
+  state           String
+  zipCode         String
+  latitude        Float?
+  longitude       Float?
+
+  // Professional Info
+  experience      Int      @default(0) // years
+  languages       String[]
+  specialties     String[]
+
+  // Pricing
+  priceMin        Float
+  priceMax        Float
+
+  // Insurance
+  insuranceAccepted String[]
+
+  // Ratings
+  averageRating   Float    @default(0)
+  reviewCount     Int      @default(0)
+
+  // Business Hours
+  businessHours   Json?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  education       Education[]
+  certifications  Certification[]
+  services        Service[]
+  appointments    Appointment[]
+  reviews         Review[]
+  availability    Availability[]
+
+  @@map("provider_profiles")
+}
+
+// Education
+model Education {
+  id           String          @id @default(cuid())
+  providerId   String
+  provider     ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  degree       String
+  institution  String
+  year         Int
+  createdAt    DateTime        @default(now())
+
+  @@map("education")
+}
+
+// Certification
+model Certification {
+  id           String          @id @default(cuid())
+  providerId   String
+  provider     ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  name         String
+  issuer       String
+  year         Int
+  expiryDate   DateTime?
+  createdAt    DateTime        @default(now())
+
+  @@map("certifications")
+}
+
+// Service
+model Service {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  name        String
+  description String          @db.Text
+  duration    Int             // minutes
+  price       Float
+  category    String
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relations
+  appointments Appointment[]
+
+  @@map("services")
+}
+
+// Appointment
+model Appointment {
+  id          String            @id @default(cuid())
+
+  // Relations
+  customerId  String
+  customer    User              @relation(fields: [customerId], references: [id])
+  providerId  String
+  provider    ProviderProfile   @relation(fields: [providerId], references: [id])
+  serviceId   String
+  service     Service           @relation(fields: [serviceId], references: [id])
+
+  // Appointment Details
+  date        DateTime
+  startTime   String
+  endTime     String
+  status      AppointmentStatus @default(SCHEDULED)
+  notes       String?           @db.Text
+
+  // Payment
+  amount      Float
+  paymentStatus PaymentStatus   @default(PENDING)
+  paymentId   String?
+
+  // Calendar Integration
+  googleEventId String?
+
+  // Timestamps
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("appointments")
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+// Review
+model Review {
+  id          String          @id @default(cuid())
+  customerId  String
+  customer    User            @relation(fields: [customerId], references: [id])
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  rating      Int             // 1-5
+  comment     String          @db.Text
+  verified    Boolean         @default(false)
+  helpful     Int             @default(0)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("reviews")
+}
+
+// Favorite (Save providers)
+model Favorite {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId  String
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, providerId])
+  @@map("favorites")
+}
+
+// Availability (Provider's available time slots)
+model Availability {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  dayOfWeek   Int             // 0-6 (Sunday-Saturday)
+  startTime   String
+  endTime     String
+  active      Boolean         @default(true)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("availability")
+}
