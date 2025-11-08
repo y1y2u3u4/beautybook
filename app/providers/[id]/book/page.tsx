@@ -312,7 +312,7 @@ export default function BookingPage({ params }: { params: { id: string } }) {
               </button>
 
               <p className="text-xs text-neutral-500 text-center mt-4">
-                You won't be charged until your appointment is confirmed
+                You won&apos;t be charged until your appointment is confirmed
               </p>
             </div>
           </div>

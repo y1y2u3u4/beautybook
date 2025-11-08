@@ -60,7 +60,7 @@ export default function HomePage() {
             <p className="text-xl md:text-2xl text-neutral-600 mb-12 leading-relaxed">
               Book appointments with verified specialists, read authentic reviews,
               <br className="hidden md:block" />
-              and experience beauty services you'll love.
+              and experience beauty services you&apos;ll love.
             </p>
 
             {/* Enhanced Search Bar */}
