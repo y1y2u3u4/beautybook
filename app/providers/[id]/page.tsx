@@ -53,8 +53,8 @@ export default function ProviderDetailPage({ params }: { params: { id: string } 
             <div className="flex-shrink-0">
               <div className="relative w-40 h-40 rounded-2xl overflow-hidden bg-neutral-100">
                 <Image
-                  src={provider.avatar}
-                  alt={provider.name}
+                  src={provider.coverImage || provider.images?.[0] || '/placeholder.jpg'}
+                  alt={provider.businessName}
                   fill
                   className="object-cover"
                 />
@@ -70,14 +70,14 @@ export default function ProviderDetailPage({ params }: { params: { id: string } 
             <div className="flex-1">
               <div className="flex items-start justify-between">
                 <div>
-                  <h1 className="text-3xl font-bold text-neutral-900">{provider.name}</h1>
-                  <p className="text-lg text-neutral-600 mt-2">{provider.title}</p>
+                  <h1 className="text-3xl font-bold text-neutral-900">{provider.businessName}</h1>
+                  <p className="text-lg text-neutral-600 mt-2">{provider.description}</p>
 
                   <div className="flex items-center gap-6 mt-4">
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1 bg-primary-50 px-3 py-1.5 rounded-lg">
                         <Star className="w-5 h-5 fill-primary-600 text-primary-600" />
-                        <span className="font-bold text-lg text-neutral-900">{provider.rating}</span>
+                        <span className="font-bold text-lg text-neutral-900">{provider.averageRating}</span>
                       </div>
                       <span className="text-neutral-600">({provider.reviewCount} reviews)</span>
                     </div>
@@ -93,7 +93,7 @@ export default function ProviderDetailPage({ params }: { params: { id: string } 
                   <div className="flex flex-wrap gap-4 mt-4 text-neutral-600">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-5 h-5" />
-                      <span>{provider.location.address}, {provider.location.city}, {provider.location.state}</span>
+                      <span>{provider.city}, {provider.state}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-5 h-5" />
@@ -207,13 +207,13 @@ export default function ProviderDetailPage({ params }: { params: { id: string } 
               <div className="bg-neutral-50 rounded-xl p-6 mb-6">
                 <div className="flex items-center gap-8">
                   <div className="text-center">
-                    <div className="text-5xl font-bold text-neutral-900">{provider.rating}</div>
+                    <div className="text-5xl font-bold text-neutral-900">{provider.averageRating}</div>
                     <div className="flex justify-center mt-2">
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
                           className={`w-5 h-5 ${
-                            i < Math.floor(provider.rating)
+                            i < Math.floor(provider.averageRating)
                               ? 'fill-primary-600 text-primary-600'
                               : 'text-neutral-300'
                           }`}

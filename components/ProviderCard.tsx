@@ -28,8 +28,8 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
         <div className="flex-shrink-0">
           <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-gradient-to-br from-primary-100 to-secondary-100 ring-4 ring-white group-hover:ring-primary-200 transition-all">
             <Image
-              src={provider.avatar}
-              alt={provider.name}
+              src={provider.coverImage || provider.images?.[0] || '/placeholder.jpg'}
+              alt={provider.businessName || provider.name}
               fill
               className="object-cover group-hover:scale-110 transition-transform duration-300"
             />
@@ -47,17 +47,17 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
             <div>
               <Link href={`/providers/${provider.id}`} className="group">
                 <h3 className="text-xl font-semibold text-neutral-900 group-hover:text-primary-600 transition-colors">
-                  {provider.name}
+                  {provider.businessName || provider.name}
                 </h3>
               </Link>
-              <p className="text-neutral-600 mt-1">{provider.title}</p>
+              <p className="text-neutral-600 mt-1">{provider.description || provider.title}</p>
             </div>
 
             {/* Rating */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="flex items-center gap-1 bg-gradient-to-r from-primary-50 to-secondary-50 px-4 py-2 rounded-2xl border border-primary-200 shadow-sm">
                 <Star className="w-5 h-5 fill-primary-600 text-primary-600" />
-                <span className="font-bold text-lg gradient-text">{provider.rating}</span>
+                <span className="font-bold text-lg gradient-text">{provider.averageRating}</span>
               </div>
               <span className="text-sm text-neutral-600 font-medium">({provider.reviewCount})</span>
             </div>
@@ -76,7 +76,7 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
           <div className="flex flex-wrap gap-4 mt-4 text-sm text-neutral-600">
             <div className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4" />
-              <span>{provider.location.city}, {provider.location.state}</span>
+              <span>{provider.city || provider.location.city}, {provider.state || provider.location.state}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Clock className="w-4 h-4" />

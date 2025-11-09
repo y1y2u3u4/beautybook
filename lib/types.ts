@@ -1,10 +1,17 @@
 export interface Provider {
   id: string;
   name: string;
+  businessName?: string;
   title: string;
+  description?: string;
   avatar: string;
+  coverImage?: string;
+  images?: string[];
+  city?: string;
+  state?: string;
   specialty: string[];
   rating: number;
+  averageRating?: number;
   reviewCount: number;
   experience: number; // years
   bio: string;

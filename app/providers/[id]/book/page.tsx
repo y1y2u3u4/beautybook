@@ -98,17 +98,17 @@ export default function BookingPage({ params }: { params: { id: string } }) {
               <div className="flex items-center gap-4">
                 <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-neutral-100">
                   <Image
-                    src={provider.avatar}
-                    alt={provider.name}
+                    src={provider.coverImage || provider.images?.[0] || '/placeholder.jpg'}
+                    alt={provider.businessName}
                     fill
                     className="object-cover"
                   />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-neutral-900">{provider.name}</h2>
-                  <p className="text-neutral-600">{provider.title}</p>
+                  <h2 className="text-xl font-bold text-neutral-900">{provider.businessName}</h2>
+                  <p className="text-neutral-600">{provider.category}</p>
                   <p className="text-sm text-neutral-500 mt-1">
-                    {provider.location.city}, {provider.location.state}
+                    {provider.city}, {provider.state}
                   </p>
                 </div>
               </div>
