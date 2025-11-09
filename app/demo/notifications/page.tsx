@@ -13,7 +13,7 @@ export default function NotificationsDemo() {
   const filteredNotifications = notifications.filter((notif) => {
     if (filter === 'unread') return !notif.read;
     if (filter === 'all') return true;
-    const typeMap = {
+    const typeMap: Record<string, string[]> = {
       bookings: ['BOOKING_NEW', 'BOOKING_CANCELLED', 'BOOKING_REMINDER'],
       reviews: ['REVIEW_NEW'],
       payments: ['PAYMENT_RECEIVED'],
@@ -106,7 +106,10 @@ export default function NotificationsDemo() {
   );
 }
 
-function NotificationCard({ notification, onMarkAsRead }) {
+function NotificationCard({ notification, onMarkAsRead }: {
+  notification: any;
+  onMarkAsRead: (id: string) => void;
+}) {
   const getIcon = (type: string) => {
     switch (type) {
       case 'BOOKING_NEW':

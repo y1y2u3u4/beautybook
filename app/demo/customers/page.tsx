@@ -15,6 +15,7 @@ export default function CustomersDemo() {
 
   const filteredCustomers = customers
     .filter((customer) => {
+      if (!customer) return false;
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
         return (
@@ -25,12 +26,14 @@ export default function CustomersDemo() {
       return true;
     })
     .filter((customer) => {
+      if (!customer) return false;
       if (filters.segment !== 'all') {
         return customer.segment === filters.segment;
       }
       return true;
     })
     .sort((a, b) => {
+      if (!a || !b) return 0;
       switch (filters.sortBy) {
         case 'revenue':
           return b.totalSpent - a.totalSpent;
@@ -163,7 +166,7 @@ export default function CustomersDemo() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredCustomers.map((customer) => (
+              {filteredCustomers.filter(c => c !== null).map((customer) => (
                 <CustomerRow key={customer.id} customer={customer} />
               ))}
             </tbody>
@@ -181,8 +184,15 @@ export default function CustomersDemo() {
   );
 }
 
-function StatCard({ title, value, icon, trend, trendUp, color = 'primary' }) {
-  const colors = {
+function StatCard({ title, value, icon, trend, trendUp, color = 'primary' }: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  trend?: string;
+  trendUp?: boolean;
+  color?: string;
+}) {
+  const colors: Record<string, string> = {
     primary: 'bg-purple-100',
     yellow: 'bg-yellow-100',
     green: 'bg-green-100',
@@ -206,8 +216,8 @@ function StatCard({ title, value, icon, trend, trendUp, color = 'primary' }) {
   );
 }
 
-function CustomerRow({ customer }) {
-  const segmentBadges = {
+function CustomerRow({ customer }: { customer: any }) {
+  const segmentBadges: Record<string, string> = {
     VIP: 'bg-yellow-100 text-yellow-800 border-yellow-300',
     NEW: 'bg-green-100 text-green-800 border-green-300',
     AT_RISK: 'bg-orange-100 text-orange-800 border-orange-300',
@@ -256,8 +266,8 @@ function CustomerRow({ customer }) {
   );
 }
 
-function RFMBadge({ score, label, color }) {
-  const colors = {
+function RFMBadge({ score, label, color }: { score: number; label: string; color: string }) {
+  const colors: Record<string, string> = {
     green: score >= 4 ? 'bg-green-500' : score >= 3 ? 'bg-green-400' : 'bg-gray-300',
     blue: score >= 4 ? 'bg-blue-500' : score >= 3 ? 'bg-blue-400' : 'bg-gray-300',
     orange: score >= 4 ? 'bg-orange-500' : score >= 3 ? 'bg-orange-400' : 'bg-gray-300',

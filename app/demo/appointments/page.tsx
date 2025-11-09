@@ -277,15 +277,20 @@ export default function AppointmentsDemo() {
   );
 }
 
-function AppointmentCard({ appointment, onConfirm, onCancel, onComplete }) {
-  const statusColors = {
+function AppointmentCard({ appointment, onConfirm, onCancel, onComplete }: {
+  appointment: any;
+  onConfirm: (id: string) => void;
+  onCancel: (id: string) => void;
+  onComplete: (id: string) => void;
+}) {
+  const statusColors: Record<string, string> = {
     SCHEDULED: 'bg-yellow-100 border-yellow-400 text-yellow-800',
     CONFIRMED: 'bg-blue-100 border-blue-400 text-blue-800',
     COMPLETED: 'bg-green-100 border-green-400 text-green-800',
     CANCELLED: 'bg-red-100 border-red-400 text-red-800',
   };
 
-  const statusIcons = {
+  const statusIcons: Record<string, React.ReactNode> = {
     SCHEDULED: <Clock size={16} />,
     CONFIRMED: <CheckCircle size={16} />,
     COMPLETED: <CheckCircle size={16} />,
