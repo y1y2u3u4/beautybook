@@ -3,13 +3,20 @@ import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia',
-});
+// Mark this route as dynamic
+export const dynamic = 'force-dynamic';
+
+// Initialize Stripe
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2025-10-29.clover',
+  });
+}
 
 // POST /api/appointments - Create a new appointment
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripe();
     const { userId } = await auth();
 
     if (!userId) {

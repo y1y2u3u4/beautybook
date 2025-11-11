@@ -1,9 +1,14 @@
+'use client';
+
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { UserButton } from '@clerk/nextjs';
 import { Calendar, Heart, User, Star, Sparkles } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  // Check if Clerk is available
+  const hasClerk = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes('placeholder');
+
   return (
     <div className="min-h-screen bg-neutral-50">
       {/* Header */}
@@ -20,7 +25,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <Link href="/providers" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
                 Find Providers
               </Link>
-              <UserButton afterSignOutUrl="/" />
+              {hasClerk ? (
+                <UserButton afterSignOutUrl="/" />
+              ) : (
+                <Link href="/sign-in" className="btn-primary">
+                  Sign In
+                </Link>
+              )}
             </div>
           </div>
         </div>
