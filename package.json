@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "setup-db": "PGPASSWORD=531MQFYrbLwqBmTH psql -h aws-1-us-east-1.pooler.supabase.com -p 5432 -U postgres.jsyxfclzeiyjalxcwkep -d postgres -f lib/db/schema.sql",
     "init-db": "tsx scripts/init-db.ts",
     "reset-db": "PGPASSWORD=531MQFYrbLwqBmTH psql -h aws-1-us-east-1.pooler.supabase.com -p 5432 -U postgres.jsyxfclzeiyjalxcwkep -d postgres -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && npm run setup-db"
