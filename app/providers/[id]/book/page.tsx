@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Calendar, Clock, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, Check, Loader2 } from 'lucide-react';
 import { mockProviders, mockServices } from '@/lib/mock-data';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
@@ -15,6 +15,8 @@ export default function BookingPage({ params }: { params: { id: string } }) {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!provider) {
     return <div>Provider not found</div>;
@@ -66,6 +68,63 @@ export default function BookingPage({ params }: { params: { id: string } }) {
     : null;
 
   const canProceed = selectedService && selectedDate && selectedTime;
+
+  const handleBooking = async () => {
+    if (!canProceed || !selectedServiceData) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Calculate end time based on service duration
+      const [timeValue, period] = selectedTime!.split(' ');
+      const [hours, minutes] = timeValue.split(':').map(Number);
+      let startHour = hours;
+      if (period === 'PM' && hours !== 12) startHour += 12;
+      if (period === 'AM' && hours === 12) startHour = 0;
+
+      const startDate = new Date(selectedDate);
+      startDate.setHours(startHour, minutes, 0, 0);
+
+      const endDate = new Date(startDate);
+      endDate.setMinutes(endDate.getMinutes() + selectedServiceData.duration);
+
+      const endHour = endDate.getHours();
+      const endMinute = endDate.getMinutes();
+      const endPeriod = endHour >= 12 ? 'PM' : 'AM';
+      const endDisplayHour = endHour > 12 ? endHour - 12 : endHour === 0 ? 12 : endHour;
+      const endTime = `${endDisplayHour}:${endMinute.toString().padStart(2, '0')} ${endPeriod}`;
+
+      const response = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          providerId: provider.id,
+          serviceId: selectedService,
+          date: selectedDate.toISOString(),
+          startTime: selectedTime,
+          endTime: endTime,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create appointment');
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (err: any) {
+      console.error('Error creating appointment:', err);
+      setError(err.message || 'Something went wrong. Please try again.');
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -300,15 +359,29 @@ export default function BookingPage({ params }: { params: { id: string } }) {
                 )}
               </div>
 
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
+
               <button
-                disabled={!canProceed}
+                onClick={handleBooking}
+                disabled={!canProceed || isLoading}
                 className={`w-full mt-6 ${
-                  canProceed
+                  canProceed && !isLoading
                     ? 'btn-primary'
                     : 'bg-neutral-200 text-neutral-400 px-6 py-3 rounded-xl font-medium cursor-not-allowed'
                 }`}
               >
-                Continue to Checkout
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Processing...
+                  </span>
+                ) : (
+                  'Continue to Checkout'
+                )}
               </button>
 
               <p className="text-xs text-neutral-500 text-center mt-4">

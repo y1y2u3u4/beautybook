@@ -1,7 +1,23 @@
+'use client';
+
+import { useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Search, Calendar, Star, Shield, MapPin, Clock, Sparkles, Heart, Award } from 'lucide-react';
 
 export default function HomePage() {
+  const router = useRouter();
+  const [service, setService] = useState('');
+  const [location, setLocation] = useState('');
+
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (service) params.set('search', service);
+    if (location) params.set('location', location);
+    router.push(`/providers?${params.toString()}`);
+  };
+
   return (
     <div className="min-h-screen">
       {/* Header with Glass Effect */}
@@ -64,13 +80,15 @@ export default function HomePage() {
             </p>
 
             {/* Enhanced Search Bar */}
-            <div className="card-glass max-w-3xl mx-auto p-4 animate-slide-up">
+            <form onSubmit={handleSearch} className="card-glass max-w-3xl mx-auto p-4 animate-slide-up">
               <div className="flex flex-col md:flex-row gap-3">
                 <div className="flex-1 flex items-center bg-white rounded-2xl px-5 py-4 border-2 border-neutral-200 focus-within:border-primary-400 transition-all">
                   <Search className="w-6 h-6 text-primary-500 mr-3" />
                   <input
                     type="text"
                     placeholder="Facial, Massage, Hair Styling..."
+                    value={service}
+                    onChange={(e) => setService(e.target.value)}
                     className="flex-1 outline-none text-neutral-700 text-lg bg-transparent"
                   />
                 </div>
@@ -79,15 +97,17 @@ export default function HomePage() {
                   <input
                     type="text"
                     placeholder="Los Angeles, CA"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
                     className="flex-1 outline-none text-neutral-700 text-lg bg-transparent"
                   />
                 </div>
-                <Link href="/providers" className="btn-primary whitespace-nowrap text-lg px-10">
+                <button type="submit" className="btn-primary whitespace-nowrap text-lg px-10">
                   <Search className="w-5 h-5 inline mr-2" />
                   Search
-                </Link>
+                </button>
               </div>
-            </div>
+            </form>
 
             {/* Popular Services */}
             <div className="mt-10 flex flex-wrap justify-center gap-3">
