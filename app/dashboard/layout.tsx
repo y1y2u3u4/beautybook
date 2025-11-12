@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { UserButton } from '@clerk/nextjs';
-import { Calendar, Heart, User, Star, Sparkles } from 'lucide-react';
+import { Calendar, Heart, User, Star, Sparkles, Share2 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   // Check if Clerk is available
@@ -48,6 +48,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               >
                 <Calendar className="w-5 h-5" />
                 <span className="font-medium">My Appointments</span>
+              </Link>
+              <Link
+                href="/dashboard/sharing"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+              >
+                <Share2 className="w-5 h-5" />
+                <span className="font-medium">Sharing Center</span>
               </Link>
               <Link
                 href="/dashboard/favorites"
