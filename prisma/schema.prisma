@@ -108,6 +108,7 @@ model ProviderProfile {
   appointments    Appointment[]
   reviews         Review[]
   availability    Availability[]
+  staff           Staff[]
 
   @@map("provider_profiles")
 }
@@ -170,6 +171,8 @@ model Appointment {
   provider    ProviderProfile   @relation(fields: [providerId], references: [id])
   serviceId   String
   service     Service           @relation(fields: [serviceId], references: [id])
+  assignedToId String?
+  assignedTo  Staff?            @relation(fields: [assignedToId], references: [id])
 
   // Appointment Details
   date        DateTime
@@ -254,4 +257,33 @@ model Availability {
   updatedAt   DateTime        @updatedAt
 
   @@map("availability")
+}
+
+// Staff (Provider's employees)
+model Staff {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Personal Info
+  name        String
+  email       String
+  phone       String?
+  avatar      String?
+
+  // Professional Info
+  title       String          // e.g., "Senior Stylist", "Massage Therapist"
+  bio         String?         @db.Text
+  specialties String[]
+
+  // Status
+  active      Boolean         @default(true)
+
+  // Relations
+  appointments Appointment[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("staff")
 }

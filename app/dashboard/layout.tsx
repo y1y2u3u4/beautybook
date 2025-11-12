@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { UserButton } from '@clerk/nextjs';
-import { Calendar, Heart, User, Star, Sparkles, Share2 } from 'lucide-react';
+import { Calendar, Heart, User, Star, Sparkles, Share2, Users, ClipboardList } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   // Check if Clerk is available
@@ -41,42 +41,79 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="grid md:grid-cols-4 gap-8">
           {/* Sidebar Navigation */}
           <aside className="md:col-span-1">
-            <nav className="card space-y-1">
-              <Link
-                href="/dashboard/appointments"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
-              >
-                <Calendar className="w-5 h-5" />
-                <span className="font-medium">My Appointments</span>
-              </Link>
-              <Link
-                href="/dashboard/sharing"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
-              >
-                <Share2 className="w-5 h-5" />
-                <span className="font-medium">Sharing Center</span>
-              </Link>
-              <Link
-                href="/dashboard/favorites"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
-              >
-                <Heart className="w-5 h-5" />
-                <span className="font-medium">Favorites</span>
-              </Link>
-              <Link
-                href="/dashboard/reviews"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
-              >
-                <Star className="w-5 h-5" />
-                <span className="font-medium">My Reviews</span>
-              </Link>
-              <Link
-                href="/dashboard/profile"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
-              >
-                <User className="w-5 h-5" />
-                <span className="font-medium">Profile</span>
-              </Link>
+            <nav className="card space-y-6">
+              {/* Customer Section */}
+              <div>
+                <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide px-4 mb-2">
+                  个人
+                </p>
+                <div className="space-y-1">
+                  <Link
+                    href="/dashboard/appointments"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  >
+                    <Calendar className="w-5 h-5" />
+                    <span className="font-medium">My Appointments</span>
+                  </Link>
+                  <Link
+                    href="/dashboard/favorites"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  >
+                    <Heart className="w-5 h-5" />
+                    <span className="font-medium">Favorites</span>
+                  </Link>
+                  <Link
+                    href="/dashboard/reviews"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  >
+                    <Star className="w-5 h-5" />
+                    <span className="font-medium">My Reviews</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Provider Section */}
+              <div className="pt-4 border-t border-neutral-200">
+                <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide px-4 mb-2">
+                  商户功能
+                </p>
+                <div className="space-y-1">
+                  <Link
+                    href="/dashboard/manage-appointments"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  >
+                    <ClipboardList className="w-5 h-5" />
+                    <span className="font-medium">Manage Appointments</span>
+                  </Link>
+                  <Link
+                    href="/dashboard/staff"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  >
+                    <Users className="w-5 h-5" />
+                    <span className="font-medium">Staff Management</span>
+                  </Link>
+                  <Link
+                    href="/dashboard/sharing"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  >
+                    <Share2 className="w-5 h-5" />
+                    <span className="font-medium">Sharing Center</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Account Section */}
+              <div className="pt-4 border-t border-neutral-200">
+                <div className="space-y-1">
+                  <Link
+                    href="/dashboard/profile"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  >
+                    <User className="w-5 h-5" />
+                    <span className="font-medium">Profile</span>
+                  </Link>
+                </div>
+              </div>
             </nav>
           </aside>
 
