@@ -4,5 +4,11 @@
     "SKIP_ENV_VALIDATION": "1"
   },
   "framework": "nextjs",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/cron/send-reminders",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

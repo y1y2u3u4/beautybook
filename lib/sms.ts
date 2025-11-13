@@ -1,0 +1,239 @@
+import twilio from 'twilio';
+
+// Initialize Twilio client lazily
+let twilioClient: ReturnType<typeof twilio> | null = null;
+
+function getTwilioClient() {
+  if (!twilioClient && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    // Only initialize if credentials are properly configured
+    if (
+      process.env.TWILIO_ACCOUNT_SID.startsWith('AC') &&
+      process.env.TWILIO_AUTH_TOKEN.length > 10
+    ) {
+      twilioClient = twilio(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      );
+    }
+  }
+  return twilioClient;
+}
+
+interface AppointmentSMSData {
+  customerPhone: string;
+  customerName: string;
+  providerName: string;
+  serviceName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  amount: number;
+  appointmentId: string;
+}
+
+/**
+ * Send appointment confirmation SMS
+ */
+export async function sendAppointmentConfirmationSMS(data: AppointmentSMSData) {
+  const twilioClient = getTwilioClient();
+  if (!twilioClient) {
+    console.warn('Twilio not configured, skipping SMS');
+    return { success: false, error: 'Twilio not configured' };
+  }
+
+  if (!process.env.TWILIO_PHONE_NUMBER) {
+    console.warn('Twilio phone number not configured, skipping SMS');
+    return { success: false, error: 'Twilio phone number not configured' };
+  }
+
+  // Format phone number (ensure it starts with +)
+  const toPhone = data.customerPhone.startsWith('+')
+    ? data.customerPhone
+    : `+1${data.customerPhone.replace(/\D/g, '')}`;
+
+  const message = `✨ BeautyBook预约确认
+
+您好 ${data.customerName}！
+
+您的预约已确认：
+📍 ${data.providerName}
+💇 ${data.serviceName}
+📅 ${data.date}
+⏰ ${data.startTime} - ${data.endTime}
+💰 $${data.amount.toFixed(2)}
+
+我们会在预约前24小时再次提醒您。
+
+查看详情: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/appointments
+
+预约ID: ${data.appointmentId}`;
+
+  try {
+    await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toPhone,
+    });
+    console.log(`Confirmation SMS sent to ${toPhone}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending confirmation SMS:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send appointment reminder SMS (24 hours before)
+ */
+export async function sendAppointmentReminderSMS(data: AppointmentSMSData) {
+  const twilioClient = getTwilioClient();
+  if (!twilioClient) {
+    console.warn('Twilio not configured, skipping SMS');
+    return { success: false, error: 'Twilio not configured' };
+  }
+
+  if (!process.env.TWILIO_PHONE_NUMBER) {
+    console.warn('Twilio phone number not configured, skipping SMS');
+    return { success: false, error: 'Twilio phone number not configured' };
+  }
+
+  const toPhone = data.customerPhone.startsWith('+')
+    ? data.customerPhone
+    : `+1${data.customerPhone.replace(/\D/g, '')}`;
+
+  const message = `⏰ BeautyBook预约提醒
+
+您好 ${data.customerName}！
+
+您的预约将在明天进行：
+📍 ${data.providerName}
+💇 ${data.serviceName}
+📅 明天 ${data.startTime}
+
+请准时到达，提前5-10分钟为佳。
+
+如需取消或调整，请尽快访问:
+${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/appointments
+
+期待为您服务！`;
+
+  try {
+    await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toPhone,
+    });
+    console.log(`Reminder SMS sent to ${toPhone}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending reminder SMS:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send appointment cancellation SMS
+ */
+export async function sendAppointmentCancellationSMS(
+  data: AppointmentSMSData & { reason?: string; refundAmount?: number }
+) {
+  const twilioClient = getTwilioClient();
+  if (!twilioClient) {
+    console.warn('Twilio not configured, skipping SMS');
+    return { success: false, error: 'Twilio not configured' };
+  }
+
+  if (!process.env.TWILIO_PHONE_NUMBER) {
+    console.warn('Twilio phone number not configured, skipping SMS');
+    return { success: false, error: 'Twilio phone number not configured' };
+  }
+
+  const toPhone = data.customerPhone.startsWith('+')
+    ? data.customerPhone
+    : `+1${data.customerPhone.replace(/\D/g, '')}`;
+
+  const refundInfo = data.refundAmount
+    ? `\n💰 退款金额: $${data.refundAmount.toFixed(2)}\n退款将在5-7个工作日内处理。`
+    : '';
+
+  const message = `❌ BeautyBook预约取消
+
+您好 ${data.customerName}，
+
+您的预约已取消：
+📍 ${data.providerName}
+💇 ${data.serviceName}
+📅 ${data.date} ${data.startTime}${refundInfo}
+
+我们期待下次为您服务！
+
+重新预约: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/providers`;
+
+  try {
+    await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toPhone,
+    });
+    console.log(`Cancellation SMS sent to ${toPhone}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending cancellation SMS:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send appointment assignment notification SMS to staff
+ */
+export async function sendStaffAssignmentSMS(data: {
+  staffPhone: string;
+  staffName: string;
+  customerName: string;
+  serviceName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}) {
+  const twilioClient = getTwilioClient();
+  if (!twilioClient) {
+    console.warn('Twilio not configured, skipping SMS');
+    return { success: false, error: 'Twilio not configured' };
+  }
+
+  if (!process.env.TWILIO_PHONE_NUMBER) {
+    console.warn('Twilio phone number not configured, skipping SMS');
+    return { success: false, error: 'Twilio phone number not configured' };
+  }
+
+  const toPhone = data.staffPhone.startsWith('+')
+    ? data.staffPhone
+    : `+1${data.staffPhone.replace(/\D/g, '')}`;
+
+  const message = `👤 新预约分配
+
+您好 ${data.staffName}！
+
+您有新的预约任务：
+👤 客户: ${data.customerName}
+💇 服务: ${data.serviceName}
+📅 ${data.date}
+⏰ ${data.startTime} - ${data.endTime}
+
+请准时到岗，为客户提供优质服务。
+
+查看详情: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/manage-appointments`;
+
+  try {
+    await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toPhone,
+    });
+    console.log(`Assignment SMS sent to staff ${toPhone}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending assignment SMS:', error);
+    return { success: false, error: error.message };
+  }
+}

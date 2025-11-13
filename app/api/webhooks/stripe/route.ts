@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import prisma from '@/lib/prisma';
 import { sendAppointmentConfirmation } from '@/lib/email';
+import { sendAppointmentConfirmationSMS } from '@/lib/sms';
 
 // Initialize Stripe
 function getStripe() {
@@ -62,7 +63,11 @@ export async function POST(request: NextRequest) {
               paymentId: session.id,
             },
             include: {
-              customer: true,
+              customer: {
+                include: {
+                  customerProfile: true,
+                },
+              },
               provider: {
                 include: {
                   user: true,
@@ -102,6 +107,27 @@ export async function POST(request: NextRequest) {
             });
 
             console.log('Confirmation email sent successfully');
+
+            // Send SMS confirmation if phone number exists
+            if (appointment.customer.customerProfile?.phone) {
+              try {
+                await sendAppointmentConfirmationSMS({
+                  customerPhone: appointment.customer.customerProfile.phone,
+                  customerName,
+                  providerName,
+                  serviceName: appointment.service.name,
+                  date: formattedDate,
+                  startTime: appointment.startTime,
+                  endTime: appointment.endTime,
+                  amount: appointment.amount,
+                  appointmentId: appointment.id,
+                });
+                console.log('Confirmation SMS sent successfully');
+              } catch (smsError) {
+                console.error('Error sending confirmation SMS:', smsError);
+                // Don't fail the webhook if SMS fails
+              }
+            }
           }
         } catch (emailError) {
           console.error('Error sending confirmation email:', emailError);

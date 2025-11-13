@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Calendar, Clock, MapPin, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, CheckCircle, AlertCircle, Loader2, Star } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 interface Appointment {
@@ -55,6 +55,10 @@ export default function AppointmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [reviewingAppointment, setReviewingAppointment] = useState<Appointment | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     fetchAppointments();
@@ -104,6 +108,47 @@ export default function AppointmentsPage() {
     } catch (error) {
       console.error('Error cancelling appointment:', error);
       alert('取消预约失败，请稍后重试');
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewingAppointment) return;
+
+    if (reviewComment.trim().length < 10) {
+      alert('请至少输入10个字符的评价内容');
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          providerId: reviewingAppointment.provider.id,
+          rating: reviewRating,
+          comment: reviewComment.trim(),
+          appointmentId: reviewingAppointment.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('评价提交成功！感谢您的反馈。');
+        setReviewingAppointment(null);
+        setReviewRating(5);
+        setReviewComment('');
+      } else {
+        alert(data.error || '评价提交失败');
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      alert('评价提交失败，请稍后重试');
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -296,7 +341,11 @@ export default function AppointmentsPage() {
                         </button>
                       </>
                     ) : appointment.status === 'COMPLETED' ? (
-                      <button className="px-4 py-2 bg-primary-50 hover:bg-primary-100 text-primary-600 rounded-lg font-medium text-sm transition-colors">
+                      <button
+                        onClick={() => setReviewingAppointment(appointment)}
+                        className="px-4 py-2 bg-primary-50 hover:bg-primary-100 text-primary-600 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+                      >
+                        <Star className="w-4 h-4" />
                         Leave Review
                       </button>
                     ) : null}
@@ -353,6 +402,123 @@ export default function AppointmentsPage() {
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
               >
                 确认取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewingAppointment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-neutral-900">Leave a Review</h2>
+              <button
+                onClick={() => {
+                  setReviewingAppointment(null);
+                  setReviewRating(5);
+                  setReviewComment('');
+                }}
+                className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="relative w-16 h-16 rounded-full overflow-hidden bg-neutral-100 flex-shrink-0">
+                  {reviewingAppointment.provider.user.imageUrl ? (
+                    <Image
+                      src={reviewingAppointment.provider.user.imageUrl}
+                      alt={reviewingAppointment.provider.businessName}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-500 to-secondary-500">
+                      <span className="text-xl font-bold text-white">
+                        {reviewingAppointment.provider.businessName.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-neutral-900">
+                    {reviewingAppointment.provider.businessName}
+                  </h3>
+                  <p className="text-sm text-neutral-600">
+                    {reviewingAppointment.service.name}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-neutral-700 mb-3">
+                Rating
+              </label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setReviewRating(star)}
+                    className="p-1 hover:scale-110 transition-transform"
+                  >
+                    <Star
+                      className={`w-8 h-8 ${
+                        star <= reviewRating
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-neutral-300'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                Your Review (minimum 10 characters)
+              </label>
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Share your experience with this provider..."
+                rows={5}
+                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              />
+              <p className="text-xs text-neutral-500 mt-1">
+                {reviewComment.length} characters
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setReviewingAppointment(null);
+                  setReviewRating(5);
+                  setReviewComment('');
+                }}
+                className="flex-1 px-4 py-2 border border-neutral-200 rounded-lg font-medium hover:bg-neutral-50 transition-colors"
+                disabled={isSubmittingReview}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitReview}
+                disabled={isSubmittingReview || reviewComment.trim().length < 10}
+                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSubmittingReview ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Review'
+                )}
               </button>
             </div>
           </div>

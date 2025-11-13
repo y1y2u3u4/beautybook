@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { sendStaffAssignmentSMS } from '@/lib/sms';
 
 export const dynamic = 'force-dynamic';
 
@@ -164,6 +165,40 @@ export async function PATCH(
         assignedTo: true,
       },
     });
+
+    // Send SMS notification to assigned staff
+    if (staffId && updatedAppointment.assignedTo) {
+      try {
+        const customerName =
+          updatedAppointment.customer.firstName && updatedAppointment.customer.lastName
+            ? `${updatedAppointment.customer.firstName} ${updatedAppointment.customer.lastName}`
+            : updatedAppointment.customer.email;
+
+        const appointmentDate = new Date(appointment.date);
+        const formattedDate = appointmentDate.toLocaleDateString('zh-CN', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          weekday: 'long',
+        });
+
+        if (updatedAppointment.assignedTo.phone) {
+          await sendStaffAssignmentSMS({
+            staffPhone: updatedAppointment.assignedTo.phone,
+            staffName: updatedAppointment.assignedTo.name,
+            customerName,
+            serviceName: updatedAppointment.service.name,
+            date: formattedDate,
+            startTime: updatedAppointment.startTime,
+            endTime: updatedAppointment.endTime,
+          });
+          console.log('Staff assignment SMS sent successfully');
+        }
+      } catch (smsError) {
+        console.error('Error sending staff assignment SMS:', smsError);
+        // Don't fail the assignment if SMS fails
+      }
+    }
 
     return NextResponse.json({ appointment: updatedAppointment });
   } catch (error: any) {

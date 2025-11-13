@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 import { sendAppointmentCancellation } from '@/lib/email';
+import { sendAppointmentCancellationSMS } from '@/lib/sms';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,11 @@ export async function POST(
     const appointment = await prisma.appointment.findUnique({
       where: { id: params.id },
       include: {
-        customer: true,
+        customer: {
+          include: {
+            customerProfile: true,
+          },
+        },
         provider: {
           include: {
             user: true,
@@ -186,6 +191,29 @@ export async function POST(
       });
 
       console.log('Cancellation email sent successfully');
+
+      // Send SMS cancellation notification if phone number exists
+      if (appointment.customer.customerProfile?.phone) {
+        try {
+          await sendAppointmentCancellationSMS({
+            customerPhone: appointment.customer.customerProfile.phone,
+            customerName,
+            providerName,
+            serviceName: appointment.service.name,
+            date: formattedDate,
+            startTime: appointment.startTime,
+            endTime: appointment.endTime,
+            amount: appointment.amount,
+            appointmentId: appointment.id,
+            reason: reason || undefined,
+            refundAmount: refundAmount,
+          });
+          console.log('Cancellation SMS sent successfully');
+        } catch (smsError) {
+          console.error('Error sending cancellation SMS:', smsError);
+          // Don't fail the cancellation if SMS fails
+        }
+      }
     } catch (emailError) {
       console.error('Error sending cancellation email:', emailError);
       // Don't fail the cancellation if email fails
