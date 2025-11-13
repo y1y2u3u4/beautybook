@@ -53,6 +53,8 @@ export default function AppointmentsPage() {
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     fetchAppointments();
@@ -74,6 +76,34 @@ export default function AppointmentsPage() {
       setError(err.message || 'Failed to load appointments');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId: string) => {
+    try {
+      const response = await fetch(`/api/appointments/${appointmentId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: cancelReason }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(
+          `预约已取消\n\n退款信息：\n- 退款金额：$${data.refund.amount.toFixed(2)} (${data.refund.percentage}%)\n- 原因：${data.refund.reason}\n\n退款将在5-7个工作日内到账。`
+        );
+        await fetchAppointments();
+        setCancellingId(null);
+        setCancelReason('');
+      } else {
+        alert(data.error || '取消预约失败');
+      }
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      alert('取消预约失败，请稍后重试');
     }
   };
 
@@ -258,7 +288,10 @@ export default function AppointmentsPage() {
                         <button className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg font-medium text-sm transition-colors">
                           Reschedule
                         </button>
-                        <button className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium text-sm transition-colors">
+                        <button
+                          onClick={() => setCancellingId(appointment.id)}
+                          className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium text-sm transition-colors"
+                        >
                           Cancel
                         </button>
                       </>
@@ -272,6 +305,57 @@ export default function AppointmentsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {cancellingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <h2 className="text-2xl font-bold text-neutral-900 mb-4">取消预约</h2>
+            <p className="text-neutral-600 mb-6">
+              确定要取消此预约吗？根据取消时间，我们将按照以下政策退款：
+            </p>
+
+            <div className="bg-neutral-50 p-4 rounded-lg mb-6">
+              <ul className="space-y-2 text-sm text-neutral-700">
+                <li>• 24小时前取消：全额退款</li>
+                <li>• 24小时内取消：退款50%</li>
+                <li>• 2小时内取消：不予退款</li>
+              </ul>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                取消原因（可选）
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="请告诉我们取消的原因..."
+                rows={3}
+                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setCancellingId(null);
+                  setCancelReason('');
+                }}
+                className="flex-1 px-4 py-2 border border-neutral-200 rounded-lg font-medium hover:bg-neutral-50 transition-colors"
+              >
+                不取消
+              </button>
+              <button
+                onClick={() => handleCancelAppointment(cancellingId)}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+              >
+                确认取消
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

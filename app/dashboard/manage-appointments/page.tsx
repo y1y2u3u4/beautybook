@@ -103,7 +103,12 @@ export default function ManageAppointmentsPage() {
         setAssigningId(null);
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to assign appointment');
+        // Show detailed conflict message if available
+        if (response.status === 409 && data.message) {
+          alert(`⚠️ 时间冲突\n\n${data.message}\n\n请选择其他员工或调整预约时间。`);
+        } else {
+          alert(data.error || data.message || 'Failed to assign appointment');
+        }
       }
     } catch (error) {
       console.error('Error assigning appointment:', error);

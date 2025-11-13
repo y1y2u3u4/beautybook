@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import prisma from '@/lib/prisma';
+import { sendAppointmentConfirmation } from '@/lib/email';
 
 // Initialize Stripe
 function getStripe() {
@@ -53,7 +54,60 @@ export async function POST(request: NextRequest) {
 
         console.log('Payment successful for session:', session.id);
 
-        // TODO: Send confirmation email/SMS
+        // Send confirmation email
+        try {
+          // Get appointment details with related data
+          const appointment = await prisma.appointment.findFirst({
+            where: {
+              paymentId: session.id,
+            },
+            include: {
+              customer: true,
+              provider: {
+                include: {
+                  user: true,
+                },
+              },
+              service: true,
+            },
+          });
+
+          if (appointment) {
+            const customerName =
+              appointment.customer.firstName && appointment.customer.lastName
+                ? `${appointment.customer.firstName} ${appointment.customer.lastName}`
+                : appointment.customer.email;
+
+            const providerName = appointment.provider.businessName;
+
+            // Format date
+            const appointmentDate = new Date(appointment.date);
+            const formattedDate = appointmentDate.toLocaleDateString('zh-CN', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              weekday: 'long',
+            });
+
+            await sendAppointmentConfirmation({
+              customerEmail: appointment.customer.email,
+              customerName,
+              providerName,
+              serviceName: appointment.service.name,
+              date: formattedDate,
+              startTime: appointment.startTime,
+              endTime: appointment.endTime,
+              amount: appointment.amount,
+              appointmentId: appointment.id,
+            });
+
+            console.log('Confirmation email sent successfully');
+          }
+        } catch (emailError) {
+          console.error('Error sending confirmation email:', emailError);
+          // Don't fail the webhook if email fails
+        }
+
         // TODO: Create Google Calendar event
 
         break;
