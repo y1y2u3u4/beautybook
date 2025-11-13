@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { UserButton } from '@clerk/nextjs';
-import { Calendar, Heart, User, Star, Sparkles, Share2, Users, ClipboardList } from 'lucide-react';
+import { Calendar, Heart, User, Star, Sparkles, Share2, Users, ClipboardList, Briefcase } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   // Check if Clerk is available
@@ -91,6 +91,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   >
                     <Users className="w-5 h-5" />
                     <span className="font-medium">Staff Management</span>
+                  </Link>
+                  <Link
+                    href="/dashboard/services"
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  >
+                    <Briefcase className="w-5 h-5" />
+                    <span className="font-medium">Service Management</span>
                   </Link>
                   <Link
                     href="/dashboard/sharing"
