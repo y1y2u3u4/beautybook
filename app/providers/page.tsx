@@ -1,10 +1,26 @@
-import { Search, MapPin, SlidersHorizontal } from 'lucide-react';
+'use client';
+
+import { Search, MapPin, Loader2, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import ProviderCard from '@/components/ProviderCard';
 import FilterSidebar from '@/components/FilterSidebar';
 import { mockProviders } from '@/lib/mock-data';
 
 export default function ProvidersPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [providers, setProviders] = useState(mockProviders);
+
+  useEffect(() => {
+    // Simulate loading state
+    const timer = setTimeout(() => {
+      setProviders(mockProviders);
+      setIsLoading(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="min-h-screen bg-neutral-50">
       {/* Header */}
@@ -77,7 +93,7 @@ export default function ProvidersPage() {
                   Beauty Professionals in Your Area
                 </h2>
                 <p className="text-neutral-600 mt-1">
-                  {mockProviders.length} providers match your search
+                  {isLoading ? 'Searching...' : `${providers.length} providers match your search`}
                 </p>
               </div>
 
@@ -101,9 +117,40 @@ export default function ProvidersPage() {
 
             {/* Provider Cards */}
             <div className="space-y-4">
-              {mockProviders.map((provider) => (
-                <ProviderCard key={provider.id} provider={provider} />
-              ))}
+              {isLoading ? (
+                // Loading skeletons
+                <>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="bg-white rounded-2xl p-6 shadow-sm animate-pulse">
+                      <div className="flex gap-6">
+                        <div className="w-32 h-32 bg-neutral-200 rounded-xl flex-shrink-0"></div>
+                        <div className="flex-1 space-y-3">
+                          <div className="h-6 bg-neutral-200 rounded w-3/4"></div>
+                          <div className="h-4 bg-neutral-200 rounded w-1/2"></div>
+                          <div className="h-4 bg-neutral-200 rounded w-2/3"></div>
+                          <div className="flex gap-2">
+                            <div className="h-6 w-20 bg-neutral-200 rounded"></div>
+                            <div className="h-6 w-24 bg-neutral-200 rounded"></div>
+                          </div>
+                        </div>
+                        <div className="text-right space-y-3">
+                          <div className="h-8 w-24 bg-neutral-200 rounded ml-auto"></div>
+                          <div className="h-10 w-32 bg-neutral-200 rounded"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : providers.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-neutral-600 mb-4">No providers found matching your criteria</p>
+                  <button className="btn-primary">Clear Filters</button>
+                </div>
+              ) : (
+                providers.map((provider) => (
+                  <ProviderCard key={provider.id} provider={provider} />
+                ))
+              )}
             </div>
 
             {/* Pagination */}

@@ -1,0 +1,14 @@
+{
+  "buildCommand": "npm run build",
+  "env": {
+    "SKIP_ENV_VALIDATION": "1"
+  },
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/cron/send-reminders",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

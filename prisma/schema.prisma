@@ -26,6 +26,7 @@ model User {
   appointments    Appointment[]
   reviews         Review[]
   favorites       Favorite[]
+  waitlist        Waitlist[]
 
   @@map("users")
 }
@@ -51,6 +52,21 @@ model CustomerProfile {
   // Medical History
   medicalHistory Json?
   allergies      String[]
+
+  // Payment Methods
+  stripeCustomerId        String? @unique
+  stripePaymentMethodId   String? // Default payment method
+
+  // Loyalty Program
+  loyaltyPoints           Int      @default(0)
+  membershipTier          MembershipTier @default(BRONZE)
+  referralCode            String   @unique @default(cuid())
+  referredByCode          String?
+  totalSpent              Float    @default(0)
+
+  // Relations
+  pointsHistory           LoyaltyTransaction[]
+  rewards                 RewardRedemption[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -108,6 +124,9 @@ model ProviderProfile {
   appointments    Appointment[]
   reviews         Review[]
   availability    Availability[]
+  staff           Staff[]
+  waitlist        Waitlist[]
+  locations       Location[]
 
   @@map("provider_profiles")
 }
@@ -155,6 +174,7 @@ model Service {
 
   // Relations
   appointments Appointment[]
+  waitlist     Waitlist[]
 
   @@map("services")
 }
@@ -170,6 +190,8 @@ model Appointment {
   provider    ProviderProfile   @relation(fields: [providerId], references: [id])
   serviceId   String
   service     Service           @relation(fields: [serviceId], references: [id])
+  assignedToId String?
+  assignedTo  Staff?            @relation(fields: [assignedToId], references: [id])
 
   // Appointment Details
   date        DateTime
@@ -179,9 +201,11 @@ model Appointment {
   notes       String?           @db.Text
 
   // Payment
-  amount      Float
-  paymentStatus PaymentStatus   @default(PENDING)
-  paymentId   String?
+  amount        Float
+  tipAmount     Float             @default(0)
+  tipPercentage Int?              // 10, 15, 20, or custom
+  paymentStatus PaymentStatus     @default(PENDING)
+  paymentId     String?
 
   // Calendar Integration
   googleEventId String?
@@ -254,4 +278,165 @@ model Availability {
   updatedAt   DateTime        @updatedAt
 
   @@map("availability")
+}
+
+// Staff (Provider's employees)
+model Staff {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Personal Info
+  name        String
+  email       String
+  phone       String?
+  avatar      String?
+
+  // Professional Info
+  title       String          // e.g., "Senior Stylist", "Massage Therapist"
+  bio         String?         @db.Text
+  specialties String[]
+
+  // Status
+  active      Boolean         @default(true)
+
+  // Relations
+  appointments Appointment[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("staff")
+}
+
+// Waitlist (Customers waiting for time slots)
+model Waitlist {
+  id          String          @id @default(cuid())
+  customerId  String
+  customer    User            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceId   String
+  service     Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  // Desired time window
+  date        DateTime
+  startTime   String?         // Optional: specific start time
+  endTime     String?         // Optional: specific end time
+  flexible    Boolean         @default(true) // Accept any time on the date
+
+  // Status
+  status      WaitlistStatus  @default(ACTIVE)
+  notified    Boolean         @default(false)
+
+  // Notes
+  notes       String?         @db.Text
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([providerId, date, status])
+  @@map("waitlist")
+}
+
+enum WaitlistStatus {
+  ACTIVE      // Waiting for slot
+  NOTIFIED    // Customer was notified of available slot
+  FULFILLED   // Customer booked the slot
+  CANCELLED   // Customer cancelled waitlist request
+  EXPIRED     // Date passed without fulfillment
+}
+
+// Loyalty Program
+enum MembershipTier {
+  BRONZE      // 0-999 points
+  SILVER      // 1000-2999 points
+  GOLD        // 3000-4999 points
+  DIAMOND     // 5000+ points
+}
+
+// Loyalty Transaction (points history)
+model LoyaltyTransaction {
+  id              String          @id @default(cuid())
+  customerProfileId String
+  customerProfile CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+
+  type            TransactionType
+  points          Int             // Positive for earning, negative for spending
+  description     String
+  relatedId       String?         // Appointment ID, Reward ID, etc.
+
+  createdAt       DateTime        @default(now())
+
+  @@index([customerProfileId, createdAt])
+  @@map("loyalty_transactions")
+}
+
+enum TransactionType {
+  EARNED_BOOKING    // Points earned from booking
+  EARNED_REFERRAL   // Points earned from referral
+  SPENT_REWARD      // Points spent on reward
+  BONUS             // Bonus points (promotions, etc.)
+  ADJUSTMENT        // Manual adjustment
+}
+
+// Reward Redemption
+model RewardRedemption {
+  id                String          @id @default(cuid())
+  customerProfileId String
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+
+  rewardType        RewardType
+  pointsSpent       Int
+  discountAmount    Float?
+  description       String
+
+  // Usage
+  used              Boolean         @default(false)
+  usedAt            DateTime?
+  appointmentId     String?
+
+  createdAt         DateTime        @default(now())
+  expiresAt         DateTime
+
+  @@index([customerProfileId, used])
+  @@map("reward_redemptions")
+}
+
+enum RewardType {
+  DISCOUNT_10       // 10% off (500 points)
+  DISCOUNT_15       // 15% off (750 points)
+  DISCOUNT_20       // 20% off (1000 points)
+  FREE_SERVICE      // Free service (2000 points)
+  BIRTHDAY_BONUS    // Birthday bonus
+  TIER_BENEFIT      // Tier-specific benefit
+}
+
+// Multi-Location Support
+model Location {
+  id              String          @id @default(cuid())
+  providerId      String
+  provider        ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Location Info
+  name            String
+  address         String
+  city            String
+  state           String
+  zipCode         String
+  phone           String?
+  email           String?
+
+  // Operating Hours
+  businessHours   Json?           // {"monday": {"open": "09:00", "close": "18:00"}, ...}
+  
+  // Status
+  active          Boolean         @default(true)
+  isPrimary       Boolean         @default(false)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([providerId, active])
+  @@map("locations")
 }
