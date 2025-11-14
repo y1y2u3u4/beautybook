@@ -126,6 +126,7 @@ model ProviderProfile {
   availability    Availability[]
   staff           Staff[]
   waitlist        Waitlist[]
+  locations       Location[]
 
   @@map("provider_profiles")
 }
@@ -409,4 +410,33 @@ enum RewardType {
   FREE_SERVICE      // Free service (2000 points)
   BIRTHDAY_BONUS    // Birthday bonus
   TIER_BENEFIT      // Tier-specific benefit
+}
+
+// Multi-Location Support
+model Location {
+  id              String          @id @default(cuid())
+  providerId      String
+  provider        ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Location Info
+  name            String
+  address         String
+  city            String
+  state           String
+  zipCode         String
+  phone           String?
+  email           String?
+
+  // Operating Hours
+  businessHours   Json?           // {"monday": {"open": "09:00", "close": "18:00"}, ...}
+  
+  // Status
+  active          Boolean         @default(true)
+  isPrimary       Boolean         @default(false)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([providerId, active])
+  @@map("locations")
 }
