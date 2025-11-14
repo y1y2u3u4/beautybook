@@ -36,6 +36,9 @@ export default function HomePage() {
               <Link href="/providers" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
                 Find Providers
               </Link>
+              <Link href="/demo" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
+                Try Demo
+              </Link>
               <Link href="/about" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
                 About
               </Link>
@@ -44,6 +47,9 @@ export default function HomePage() {
               </Link>
             </nav>
             <div className="flex items-center space-x-4">
+              <Link href="/demo" className="btn-secondary">
+                Try Demo
+              </Link>
               <Link href="/register" className="btn-primary">
                 Get Started
               </Link>
