@@ -59,6 +59,8 @@ export default function AppointmentsPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<{ title: string; message: string } | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAppointments();
@@ -96,18 +98,19 @@ export default function AppointmentsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert(
-          `预约已取消\n\n退款信息：\n- 退款金额：$${data.refund.amount.toFixed(2)} (${data.refund.percentage}%)\n- 原因：${data.refund.reason}\n\n退款将在5-7个工作日内到账。`
-        );
+        setSuccessMessage({
+          title: 'Appointment Cancelled Successfully',
+          message: `Refund: $${data.refund.amount.toFixed(2)} (${data.refund.percentage}%)\nReason: ${data.refund.reason}\n\nYour refund will be processed within 5-7 business days.`
+        });
         await fetchAppointments();
         setCancellingId(null);
         setCancelReason('');
       } else {
-        alert(data.error || '取消预约失败');
+        setErrorMessage(data.error || 'Failed to cancel appointment');
       }
     } catch (error) {
       console.error('Error cancelling appointment:', error);
-      alert('取消预约失败，请稍后重试');
+      setErrorMessage('Failed to cancel appointment. Please try again later.');
     }
   };
 
@@ -115,7 +118,7 @@ export default function AppointmentsPage() {
     if (!reviewingAppointment) return;
 
     if (reviewComment.trim().length < 10) {
-      alert('请至少输入10个字符的评价内容');
+      setErrorMessage('Please enter at least 10 characters for your review.');
       return;
     }
 
@@ -137,16 +140,19 @@ export default function AppointmentsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert('评价提交成功！感谢您的反馈。');
+        setSuccessMessage({
+          title: 'Review Submitted Successfully',
+          message: 'Thank you for your feedback! Your review will help other customers make informed decisions.'
+        });
         setReviewingAppointment(null);
         setReviewRating(5);
         setReviewComment('');
       } else {
-        alert(data.error || '评价提交失败');
+        setErrorMessage(data.error || 'Failed to submit review');
       }
     } catch (error) {
       console.error('Error submitting review:', error);
-      alert('评价提交失败，请稍后重试');
+      setErrorMessage('Failed to submit review. Please try again later.');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -521,6 +527,52 @@ export default function AppointmentsPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message Modal */}
+      {successMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mx-auto mb-4">
+              <CheckCircle className="w-10 h-10 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-center text-neutral-900 mb-3">
+              {successMessage.title}
+            </h2>
+            <p className="text-neutral-600 text-center whitespace-pre-line mb-6">
+              {successMessage.message}
+            </p>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="w-full px-6 py-3 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message Modal */}
+      {errorMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
+              <AlertCircle className="w-10 h-10 text-red-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-center text-neutral-900 mb-3">
+              Oops!
+            </h2>
+            <p className="text-neutral-600 text-center mb-6">
+              {errorMessage}
+            </p>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="w-full px-6 py-3 bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800 transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
