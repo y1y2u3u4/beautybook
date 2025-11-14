@@ -52,6 +52,10 @@ model CustomerProfile {
   medicalHistory Json?
   allergies      String[]
 
+  // Payment Methods
+  stripeCustomerId        String? @unique
+  stripePaymentMethodId   String? // Default payment method
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

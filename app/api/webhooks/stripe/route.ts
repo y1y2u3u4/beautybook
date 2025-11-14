@@ -128,6 +128,70 @@ export async function POST(request: NextRequest) {
                 // Don't fail the webhook if SMS fails
               }
             }
+
+            // Save payment method for future use
+            try {
+              if (appointment.customer.customerProfile) {
+                const stripe = getStripe();
+                // Get payment intent to access payment method
+                if (session.payment_intent) {
+                  const paymentIntent = await stripe.paymentIntents.retrieve(
+                    session.payment_intent as string
+                  );
+
+                  if (paymentIntent.payment_method) {
+                    let customerId = appointment.customer.customerProfile.stripeCustomerId;
+
+                    // Create Stripe customer if doesn't exist
+                    if (!customerId) {
+                      const customer = await stripe.customers.create({
+                        email: appointment.customer.email,
+                        name: customerName,
+                        metadata: {
+                          userId: appointment.customer.id,
+                        },
+                      });
+                      customerId = customer.id;
+
+                      // Save Stripe customer ID to database
+                      await prisma.customerProfile.update({
+                        where: { id: appointment.customer.customerProfile.id },
+                        data: {
+                          stripeCustomerId: customerId,
+                        },
+                      });
+                    }
+
+                    // Attach payment method to customer
+                    await stripe.paymentMethods.attach(paymentIntent.payment_method as string, {
+                      customer: customerId,
+                    });
+
+                    // Set as default payment method if no default exists
+                    if (!appointment.customer.customerProfile.stripePaymentMethodId) {
+                      await prisma.customerProfile.update({
+                        where: { id: appointment.customer.customerProfile.id },
+                        data: {
+                          stripePaymentMethodId: paymentIntent.payment_method as string,
+                        },
+                      });
+
+                      // Also set as default in Stripe
+                      await stripe.customers.update(customerId, {
+                        invoice_settings: {
+                          default_payment_method: paymentIntent.payment_method as string,
+                        },
+                      });
+                    }
+
+                    console.log('Payment method saved for customer:', customerId);
+                  }
+                }
+              }
+            } catch (paymentMethodError) {
+              console.error('Error saving payment method:', paymentMethodError);
+              // Don't fail the webhook if saving payment method fails
+            }
           }
         } catch (emailError) {
           console.error('Error sending confirmation email:', emailError);
