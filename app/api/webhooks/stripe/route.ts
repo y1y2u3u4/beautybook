@@ -223,6 +223,62 @@ export async function POST(request: NextRequest) {
               console.error('Error creating calendar event:', calendarError);
               // Don't fail the webhook if calendar creation fails
             }
+
+            // Award loyalty points
+            try {
+              if (appointment.customer.customerProfile) {
+                // Calculate points ($1 = 1 point, with tier multiplier)
+                const basePoints = Math.floor(appointment.amount);
+                let multiplier = 1;
+
+                // Apply tier multiplier
+                if (appointment.customer.customerProfile.membershipTier === 'SILVER') multiplier = 1.2;
+                else if (appointment.customer.customerProfile.membershipTier === 'GOLD') multiplier = 1.5;
+                else if (appointment.customer.customerProfile.membershipTier === 'DIAMOND') multiplier = 2;
+
+                const points = Math.floor(basePoints * multiplier);
+
+                // Calculate new tier
+                const currentPoints = appointment.customer.customerProfile.loyaltyPoints;
+                const newTotalPoints = currentPoints + points;
+                let newTier = appointment.customer.customerProfile.membershipTier;
+
+                if (newTotalPoints >= 5000) newTier = 'DIAMOND';
+                else if (newTotalPoints >= 3000) newTier = 'GOLD';
+                else if (newTotalPoints >= 1000) newTier = 'SILVER';
+                else newTier = 'BRONZE';
+
+                // Update customer profile
+                await prisma.customerProfile.update({
+                  where: { id: appointment.customer.customerProfile.id },
+                  data: {
+                    loyaltyPoints: {
+                      increment: points,
+                    },
+                    totalSpent: {
+                      increment: appointment.amount,
+                    },
+                    membershipTier: newTier,
+                  },
+                });
+
+                // Record transaction
+                await prisma.loyaltyTransaction.create({
+                  data: {
+                    customerProfileId: appointment.customer.customerProfile.id,
+                    type: 'EARNED_BOOKING',
+                    points,
+                    description: `Earned ${points} points from booking`,
+                    relatedId: appointment.id,
+                  },
+                });
+
+                console.log(`Awarded ${points} loyalty points to customer ${appointment.customer.id}`);
+              }
+            } catch (loyaltyError) {
+              console.error('Error awarding loyalty points:', loyaltyError);
+              // Don't fail the webhook if loyalty update fails
+            }
           }
         } catch (emailError) {
           console.error('Error sending confirmation email:', emailError);

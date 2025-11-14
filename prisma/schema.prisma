@@ -57,6 +57,17 @@ model CustomerProfile {
   stripeCustomerId        String? @unique
   stripePaymentMethodId   String? // Default payment method
 
+  // Loyalty Program
+  loyaltyPoints           Int      @default(0)
+  membershipTier          MembershipTier @default(BRONZE)
+  referralCode            String   @unique @default(cuid())
+  referredByCode          String?
+  totalSpent              Float    @default(0)
+
+  // Relations
+  pointsHistory           LoyaltyTransaction[]
+  rewards                 RewardRedemption[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -333,4 +344,69 @@ enum WaitlistStatus {
   FULFILLED   // Customer booked the slot
   CANCELLED   // Customer cancelled waitlist request
   EXPIRED     // Date passed without fulfillment
+}
+
+// Loyalty Program
+enum MembershipTier {
+  BRONZE      // 0-999 points
+  SILVER      // 1000-2999 points
+  GOLD        // 3000-4999 points
+  DIAMOND     // 5000+ points
+}
+
+// Loyalty Transaction (points history)
+model LoyaltyTransaction {
+  id              String          @id @default(cuid())
+  customerProfileId String
+  customerProfile CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+
+  type            TransactionType
+  points          Int             // Positive for earning, negative for spending
+  description     String
+  relatedId       String?         // Appointment ID, Reward ID, etc.
+
+  createdAt       DateTime        @default(now())
+
+  @@index([customerProfileId, createdAt])
+  @@map("loyalty_transactions")
+}
+
+enum TransactionType {
+  EARNED_BOOKING    // Points earned from booking
+  EARNED_REFERRAL   // Points earned from referral
+  SPENT_REWARD      // Points spent on reward
+  BONUS             // Bonus points (promotions, etc.)
+  ADJUSTMENT        // Manual adjustment
+}
+
+// Reward Redemption
+model RewardRedemption {
+  id                String          @id @default(cuid())
+  customerProfileId String
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+
+  rewardType        RewardType
+  pointsSpent       Int
+  discountAmount    Float?
+  description       String
+
+  // Usage
+  used              Boolean         @default(false)
+  usedAt            DateTime?
+  appointmentId     String?
+
+  createdAt         DateTime        @default(now())
+  expiresAt         DateTime
+
+  @@index([customerProfileId, used])
+  @@map("reward_redemptions")
+}
+
+enum RewardType {
+  DISCOUNT_10       // 10% off (500 points)
+  DISCOUNT_15       // 15% off (750 points)
+  DISCOUNT_20       // 20% off (1000 points)
+  FREE_SERVICE      // Free service (2000 points)
+  BIRTHDAY_BONUS    // Birthday bonus
+  TIER_BENEFIT      // Tier-specific benefit
 }
