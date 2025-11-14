@@ -306,3 +306,123 @@ ${data.oldDate} ${data.oldStartTime} - ${data.oldEndTime}
     return { success: false, error: error.message };
   }
 }
+
+interface WaitlistSMSData {
+  customerPhone: string;
+  customerName: string;
+  providerName: string;
+  serviceName: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  flexible: boolean;
+}
+
+export async function sendWaitlistConfirmationSMS(data: WaitlistSMSData) {
+  const twilioClient = getTwilioClient();
+
+  if (!twilioClient) {
+    console.warn('Twilio not configured, skipping SMS');
+    return { success: false, error: 'Twilio not configured' };
+  }
+
+  if (!process.env.TWILIO_PHONE_NUMBER) {
+    console.warn('Twilio phone number not configured, skipping SMS');
+    return { success: false, error: 'Twilio phone number not configured' };
+  }
+
+  const toPhone = data.customerPhone.startsWith('+')
+    ? data.customerPhone
+    : `+1${data.customerPhone.replace(/\D/g, '')}`;
+
+  const timeWindow = data.startTime && data.endTime
+    ? `${data.startTime} - ${data.endTime}`
+    : data.flexible
+    ? '全天任意时间'
+    : '特定时间';
+
+  const message = `📋 已加入候补名单
+
+您好 ${data.customerName}！
+
+您已成功加入 ${data.providerName} 的候补名单。
+
+💇 服务: ${data.serviceName}
+📅 日期: ${data.date}
+⏰ 时间: ${timeWindow}
+
+当时间段可用时，我们会立即通知您。请保持电话畅通！
+
+管理候补: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/appointments`;
+
+  try {
+    await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toPhone,
+    });
+    console.log(`Waitlist confirmation SMS sent to ${toPhone}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending waitlist SMS:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+interface WaitlistAvailableSMSData {
+  customerPhone: string;
+  customerName: string;
+  providerName: string;
+  serviceName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  amount: number;
+}
+
+export async function sendWaitlistSlotAvailableSMS(data: WaitlistAvailableSMSData) {
+  const twilioClient = getTwilioClient();
+
+  if (!twilioClient) {
+    console.warn('Twilio not configured, skipping SMS');
+    return { success: false, error: 'Twilio not configured' };
+  }
+
+  if (!process.env.TWILIO_PHONE_NUMBER) {
+    console.warn('Twilio phone number not configured, skipping SMS');
+    return { success: false, error: 'Twilio phone number not configured' };
+  }
+
+  const toPhone = data.customerPhone.startsWith('+')
+    ? data.customerPhone
+    : `+1${data.customerPhone.replace(/\D/g, '')}`;
+
+  const message = `⚡ 时间段可用！
+
+${data.customerName}，好消息！
+
+您等待的时间段现在可以预约了！
+
+💇 ${data.serviceName}
+📍 ${data.providerName}
+📅 ${data.date}
+⏰ ${data.startTime} - ${data.endTime}
+💰 $${data.amount.toFixed(2)}
+
+⚠️ 先到先得，请尽快预约！
+
+立即预约: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/book`;
+
+  try {
+    await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toPhone,
+    });
+    console.log(`Waitlist slot available SMS sent to ${toPhone}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending waitlist available SMS:', error);
+    return { success: false, error: error.message };
+  }
+}

@@ -26,6 +26,7 @@ model User {
   appointments    Appointment[]
   reviews         Review[]
   favorites       Favorite[]
+  waitlist        Waitlist[]
 
   @@map("users")
 }
@@ -113,6 +114,7 @@ model ProviderProfile {
   reviews         Review[]
   availability    Availability[]
   staff           Staff[]
+  waitlist        Waitlist[]
 
   @@map("provider_profiles")
 }
@@ -160,6 +162,7 @@ model Service {
 
   // Relations
   appointments Appointment[]
+  waitlist     Waitlist[]
 
   @@map("services")
 }
@@ -292,4 +295,42 @@ model Staff {
   updatedAt   DateTime        @updatedAt
 
   @@map("staff")
+}
+
+// Waitlist (Customers waiting for time slots)
+model Waitlist {
+  id          String          @id @default(cuid())
+  customerId  String
+  customer    User            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceId   String
+  service     Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  // Desired time window
+  date        DateTime
+  startTime   String?         // Optional: specific start time
+  endTime     String?         // Optional: specific end time
+  flexible    Boolean         @default(true) // Accept any time on the date
+
+  // Status
+  status      WaitlistStatus  @default(ACTIVE)
+  notified    Boolean         @default(false)
+
+  // Notes
+  notes       String?         @db.Text
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([providerId, date, status])
+  @@map("waitlist")
+}
+
+enum WaitlistStatus {
+  ACTIVE      // Waiting for slot
+  NOTIFIED    // Customer was notified of available slot
+  FULFILLED   // Customer booked the slot
+  CANCELLED   // Customer cancelled waitlist request
+  EXPIRED     // Date passed without fulfillment
 }

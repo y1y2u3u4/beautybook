@@ -521,3 +521,87 @@ ${data.newDate} ${data.newStartTime} - ${data.newEndTime}
 © 2024 BeautyBook. All rights reserved.
   `;
 }
+
+interface WaitlistEmailData {
+  customerEmail: string;
+  customerName: string;
+  providerName: string;
+  serviceName: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  flexible: boolean;
+}
+
+/**
+ * Send waitlist confirmation email
+ */
+export async function sendWaitlistConfirmation(data: WaitlistEmailData) {
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('SendGrid API key not configured, skipping email');
+    return { success: false, error: 'SendGrid not configured' };
+  }
+
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@beautybook.com';
+
+  const timeWindow = data.startTime && data.endTime
+    ? `${data.startTime} - ${data.endTime}`
+    : data.flexible
+    ? '全天任意时间'
+    : '特定时间';
+
+  const msg = {
+    to: data.customerEmail,
+    from: fromEmail,
+    subject: `已加入候补名单 - ${data.providerName}`,
+    text: `已加入候补名单\n\n您已成功加入${data.providerName}的候补名单。\n服务：${data.serviceName}\n日期：${data.date}\n时间：${timeWindow}\n\n当时间段可用时我们会通知您。`,
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`Waitlist confirmation email sent to ${data.customerEmail}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending waitlist email:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+interface WaitlistAvailableEmailData {
+  customerEmail: string;
+  customerName: string;
+  providerName: string;
+  serviceName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  amount: number;
+}
+
+/**
+ * Send waitlist slot available notification
+ */
+export async function sendWaitlistSlotAvailable(data: WaitlistAvailableEmailData) {
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('SendGrid API key not configured, skipping email');
+    return { success: false, error: 'SendGrid not configured' };
+  }
+
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@beautybook.com';
+
+  const msg = {
+    to: data.customerEmail,
+    from: fromEmail,
+    subject: `⚡ 时间段可用！ - ${data.providerName}`,
+    text: `好消息！您等待的时间段现在可以预约了！\n\n服务：${data.serviceName}\n日期：${data.date}\n时间：${data.startTime} - ${data.endTime}\n价格：$${data.amount.toFixed(2)}\n\n请尽快完成预约，先到先得！`,
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`Waitlist slot available email sent to ${data.customerEmail}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending waitlist available email:', error);
+    return { success: false, error: error.message };
+  }
+}
