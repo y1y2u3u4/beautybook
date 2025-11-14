@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 import { sendAppointmentCancellation } from '@/lib/email';
 import { sendAppointmentCancellationSMS } from '@/lib/sms';
+import { deleteCalendarEvent } from '@/lib/calendar';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,6 +137,17 @@ export async function POST(
         console.error('Stripe refund error:', stripeError);
         // Continue with cancellation even if refund fails
         // Admin can manually process refund later
+      }
+    }
+
+    // Delete Google Calendar event if exists
+    if (appointment.googleEventId) {
+      try {
+        await deleteCalendarEvent(appointment.googleEventId);
+        console.log('Google Calendar event deleted:', appointment.googleEventId);
+      } catch (calendarError) {
+        console.error('Error deleting calendar event:', calendarError);
+        // Continue with cancellation even if calendar deletion fails
       }
     }
 

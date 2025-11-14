@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import prisma from '@/lib/prisma';
 import { sendAppointmentConfirmation } from '@/lib/email';
 import { sendAppointmentConfirmationSMS } from '@/lib/sms';
+import { createCalendarEvent } from '@/lib/calendar';
 
 // Initialize Stripe
 function getStripe() {
@@ -192,13 +193,41 @@ export async function POST(request: NextRequest) {
               console.error('Error saving payment method:', paymentMethodError);
               // Don't fail the webhook if saving payment method fails
             }
+
+            // Create Google Calendar event
+            try {
+              const result = await createCalendarEvent({
+                appointmentId: appointment.id,
+                customerName,
+                customerEmail: appointment.customer.email,
+                providerName: appointment.provider.businessName,
+                serviceName: appointment.service.name,
+                date: appointment.date,
+                startTime: appointment.startTime,
+                endTime: appointment.endTime,
+                amount: appointment.amount,
+                notes: appointment.notes || undefined,
+              });
+
+              // Save the Google event ID to the appointment
+              if (result.success && result.eventId) {
+                await prisma.appointment.update({
+                  where: { id: appointment.id },
+                  data: {
+                    googleEventId: result.eventId,
+                  },
+                });
+                console.log('Google Calendar event created and saved:', result.eventId);
+              }
+            } catch (calendarError) {
+              console.error('Error creating calendar event:', calendarError);
+              // Don't fail the webhook if calendar creation fails
+            }
           }
         } catch (emailError) {
           console.error('Error sending confirmation email:', emailError);
           // Don't fail the webhook if email fails
         }
-
-        // TODO: Create Google Calendar event
 
         break;
       }
