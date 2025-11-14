@@ -237,3 +237,72 @@ export async function sendStaffAssignmentSMS(data: {
     return { success: false, error: error.message };
   }
 }
+
+interface AppointmentRescheduleSMSData {
+  customerPhone: string;
+  customerName: string;
+  providerName: string;
+  serviceName: string;
+  oldDate: string;
+  oldStartTime: string;
+  oldEndTime: string;
+  newDate: string;
+  newStartTime: string;
+  newEndTime: string;
+  amount: number;
+  appointmentId: string;
+}
+
+/**
+ * Send appointment reschedule SMS notification
+ */
+export async function sendAppointmentRescheduleSMS(data: AppointmentRescheduleSMSData) {
+  const twilioClient = getTwilioClient();
+
+  if (!twilioClient) {
+    console.warn('Twilio not configured, skipping SMS');
+    return { success: false, error: 'Twilio not configured' };
+  }
+
+  if (!process.env.TWILIO_PHONE_NUMBER) {
+    console.warn('Twilio phone number not configured, skipping SMS');
+    return { success: false, error: 'Twilio phone number not configured' };
+  }
+
+  const toPhone = data.customerPhone.startsWith('+')
+    ? data.customerPhone
+    : `+1${data.customerPhone.replace(/\D/g, '')}`;
+
+  const message = `🔄 预约已改期
+
+您好 ${data.customerName}！
+
+您在 ${data.providerName} 的预约已改期。
+
+新时间:
+📅 ${data.newDate}
+⏰ ${data.newStartTime} - ${data.newEndTime}
+
+原时间:
+${data.oldDate} ${data.oldStartTime} - ${data.oldEndTime}
+
+💇 服务: ${data.serviceName}
+💰 金额: $${data.amount.toFixed(2)}
+
+请准时到达。如需再次调整，请访问您的预约管理页面。
+
+查看详情: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/appointments`;
+
+  try {
+    await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toPhone,
+    });
+    console.log(`Reschedule SMS sent to ${toPhone}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending reschedule SMS:', error);
+    return { success: false, error: error.message };
+  }
+}

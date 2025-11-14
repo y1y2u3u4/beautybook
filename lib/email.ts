@@ -372,3 +372,152 @@ ${data.reason ? `- 取消原因：${data.reason}` : ''}
 © 2024 BeautyBook. All rights reserved.
   `;
 }
+
+interface AppointmentRescheduleEmailData {
+  customerEmail: string;
+  customerName: string;
+  providerName: string;
+  serviceName: string;
+  oldDate: string;
+  oldStartTime: string;
+  oldEndTime: string;
+  newDate: string;
+  newStartTime: string;
+  newEndTime: string;
+  amount: number;
+  appointmentId: string;
+}
+
+/**
+ * Send appointment reschedule email
+ */
+export async function sendAppointmentReschedule(data: AppointmentRescheduleEmailData) {
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('SendGrid API key not configured, skipping email');
+    return { success: false, error: 'SendGrid not configured' };
+  }
+
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@beautybook.com';
+
+  const msg = {
+    to: data.customerEmail,
+    from: fromEmail,
+    subject: `预约已改期 - ${data.providerName}`,
+    html: generateRescheduleEmailHTML(data),
+    text: generateRescheduleEmailText(data),
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`Reschedule email sent to ${data.customerEmail}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error sending reschedule email:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+function generateRescheduleEmailHTML(data: AppointmentRescheduleEmailData): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+    .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+    .card { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .old-time { text-decoration: line-through; color: #9ca3af; }
+    .new-time { color: #3b82f6; font-weight: bold; }
+    .arrow { font-size: 24px; color: #3b82f6; text-align: center; margin: 10px 0; }
+    .button { display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+    .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔄 预约已改期</h1>
+      <p>您的预约时间已更新</p>
+    </div>
+    <div class="content">
+      <p>尊敬的 ${data.customerName}，</p>
+      <p>您的预约已成功改期。以下是更新后的预约详情：</p>
+
+      <div class="card">
+        <h2 style="margin-top: 0; color: #3b82f6;">📅 预约信息</h2>
+        <p><strong>服务提供者：</strong>${data.providerName}</p>
+        <p><strong>服务项目：</strong>${data.serviceName}</p>
+
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <p style="margin: 5px 0;" class="old-time">
+            <strong>原预约时间：</strong><br/>
+            ${data.oldDate} ${data.oldStartTime} - ${data.oldEndTime}
+          </p>
+          <div class="arrow">↓</div>
+          <p style="margin: 5px 0;" class="new-time">
+            <strong>新预约时间：</strong><br/>
+            ${data.newDate} ${data.newStartTime} - ${data.newEndTime}
+          </p>
+        </div>
+
+        <p><strong>支付金额：</strong><span style="font-size: 18px; color: #3b82f6;">$${data.amount.toFixed(2)}</span></p>
+      </div>
+
+      <p><strong>💡 温馨提示：</strong></p>
+      <ul>
+        <li>我们会在新预约时间前24小时发送提醒</li>
+        <li>如需再次调整，请访问预约管理页面</li>
+        <li>请准时到达</li>
+      </ul>
+
+      <div style="text-align: center;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/appointments" class="button">查看我的预约</a>
+      </div>
+
+      <div class="footer">
+        <p>预约 ID: ${data.appointmentId}</p>
+        <p>此邮件由 BeautyBook 自动发送，请勿回复</p>
+        <p>© 2024 BeautyBook. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+function generateRescheduleEmailText(data: AppointmentRescheduleEmailData): string {
+  return `
+预约已改期
+
+尊敬的 ${data.customerName}，
+
+您的预约已成功改期。以下是更新后的预约详情：
+
+预约信息：
+- 服务提供者：${data.providerName}
+- 服务项目：${data.serviceName}
+
+原预约时间：
+${data.oldDate} ${data.oldStartTime} - ${data.oldEndTime}
+
+新预约时间：
+${data.newDate} ${data.newStartTime} - ${data.newEndTime}
+
+支付金额：$${data.amount.toFixed(2)}
+
+温馨提示：
+- 我们会在新预约时间前24小时发送提醒
+- 如需再次调整，请访问预约管理页面
+- 请准时到达
+
+查看预约：${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/appointments
+
+预约 ID: ${data.appointmentId}
+
+此邮件由 BeautyBook 自动发送，请勿回复。
+© 2024 BeautyBook. All rights reserved.
+  `;
+}
