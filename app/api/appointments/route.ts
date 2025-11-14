@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { providerId, serviceId, date, startTime, endTime, notes } = body;
+    const { providerId, serviceId, date, startTime, endTime, notes, tipAmount = 0, tipPercentage } = body;
 
     // Validate required fields
     if (!providerId || !serviceId || !date || !startTime || !endTime) {
@@ -87,22 +87,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Prepare line items
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: service.name,
+            description: `${service.provider.businessName} - ${new Date(date).toLocaleDateString()} at ${startTime}`,
+          },
+          unit_amount: Math.round(service.price * 100), // Convert to cents
+        },
+        quantity: 1,
+      },
+    ];
+
+    // Add tip as separate line item if present
+    if (tipAmount > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'Tip',
+            description: tipPercentage ? `${tipPercentage}% tip` : 'Custom tip',
+          },
+          unit_amount: Math.round(tipAmount * 100), // Convert to cents
+        },
+        quantity: 1,
+      });
+    }
+
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: service.name,
-              description: `${service.provider.businessName} - ${new Date(date).toLocaleDateString()} at ${startTime}`,
-            },
-            unit_amount: Math.round(service.price * 100), // Convert to cents
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
       mode: 'payment',
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/appointments/{CHECKOUT_SESSION_ID}/success`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/providers/${providerId}/book`,
@@ -114,6 +132,8 @@ export async function POST(request: NextRequest) {
         startTime,
         endTime,
         notes: notes || '',
+        tipAmount: tipAmount.toString(),
+        tipPercentage: tipPercentage ? tipPercentage.toString() : '',
       },
     });
 
@@ -127,7 +147,9 @@ export async function POST(request: NextRequest) {
         startTime,
         endTime,
         status: 'SCHEDULED',
-        amount: service.price,
+        amount: service.price + tipAmount, // Total includes tip
+        tipAmount: tipAmount,
+        tipPercentage: tipPercentage,
         paymentStatus: 'PENDING',
         paymentId: session.id,
         notes,

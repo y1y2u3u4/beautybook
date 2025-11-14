@@ -182,9 +182,11 @@ model Appointment {
   notes       String?           @db.Text
 
   // Payment
-  amount      Float
-  paymentStatus PaymentStatus   @default(PENDING)
-  paymentId   String?
+  amount        Float
+  tipAmount     Float             @default(0)
+  tipPercentage Int?              // 10, 15, 20, or custom
+  paymentStatus PaymentStatus     @default(PENDING)
+  paymentId     String?
 
   // Calendar Integration
   googleEventId String?

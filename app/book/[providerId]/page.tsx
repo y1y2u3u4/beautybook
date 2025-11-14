@@ -19,6 +19,8 @@ export default function MerchantBookingPage({ params }: { params: { providerId: 
   const [currentWeekStart, setCurrentWeekStart] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tipPercentage, setTipPercentage] = useState<number>(15);
+  const [customTip, setCustomTip] = useState<string>('');
 
   // Auto-select first service if only one available
   useEffect(() => {
@@ -83,6 +85,16 @@ export default function MerchantBookingPage({ params }: { params: { providerId: 
     ? providerServices.find(s => s.id === selectedService)
     : null;
 
+  // Calculate tip amount
+  const getTipAmount = () => {
+    if (!selectedServiceData) return 0;
+    if (tipPercentage === 0) return parseFloat(customTip) || 0;
+    return (selectedServiceData.price * tipPercentage) / 100;
+  };
+
+  const tipAmount = getTipAmount();
+  const totalAmount = selectedServiceData ? selectedServiceData.price + tipAmount : 0;
+
   const canProceed = selectedService && selectedDate && selectedTime;
 
   const handleBooking = async () => {
@@ -122,6 +134,8 @@ export default function MerchantBookingPage({ params }: { params: { providerId: 
           date: selectedDate.toISOString(),
           startTime: selectedTime,
           endTime: endTime,
+          tipAmount: tipAmount,
+          tipPercentage: tipPercentage > 0 ? tipPercentage : null,
         }),
       });
 
@@ -386,14 +400,84 @@ export default function MerchantBookingPage({ params }: { params: { providerId: 
                 )}
 
                 {selectedServiceData && (
-                  <div className="pt-4 border-t border-neutral-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-neutral-600">总计</span>
-                      <span className="text-3xl font-bold gradient-text">
-                        {formatCurrency(selectedServiceData.price)}
-                      </span>
+                  <>
+                    {/* Tip Selection */}
+                    <div className="pt-4 border-t border-neutral-200">
+                      <p className="text-sm font-medium text-neutral-700 mb-3">Add a Tip</p>
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        {[10, 15, 20].map((percent) => (
+                          <button
+                            key={percent}
+                            onClick={() => {
+                              setTipPercentage(percent);
+                              setCustomTip('');
+                            }}
+                            className={`py-2 px-3 rounded-lg font-medium text-sm transition-all ${
+                              tipPercentage === percent
+                                ? 'bg-gradient-to-br from-primary-500 to-secondary-500 text-white'
+                                : 'border border-neutral-200 hover:border-primary-300 text-neutral-700'
+                            }`}
+                          >
+                            {percent}%
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => {
+                            setTipPercentage(0);
+                            setCustomTip('');
+                          }}
+                          className={`py-2 px-3 rounded-lg font-medium text-sm transition-all ${
+                            tipPercentage === 0 && !customTip
+                              ? 'bg-gradient-to-br from-primary-500 to-secondary-500 text-white'
+                              : 'border border-neutral-200 hover:border-primary-300 text-neutral-700'
+                          }`}
+                        >
+                          No Tip
+                        </button>
+                      </div>
+                      {tipPercentage === 0 && (
+                        <div className="mt-2">
+                          <label className="text-xs text-neutral-600 mb-1 block">Custom Amount</label>
+                          <input
+                            type="number"
+                            value={customTip}
+                            onChange={(e) => setCustomTip(e.target.value)}
+                            placeholder="0.00"
+                            step="0.01"
+                            min="0"
+                            className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                          />
+                        </div>
+                      )}
+                      {tipAmount > 0 && (
+                        <p className="text-xs text-neutral-500 mt-2">
+                          Tip: {formatCurrency(tipAmount)}
+                        </p>
+                      )}
                     </div>
-                  </div>
+
+                    {/* Total */}
+                    <div className="pt-4 border-t border-neutral-200">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-neutral-600">Service</span>
+                          <span className="text-neutral-900">{formatCurrency(selectedServiceData.price)}</span>
+                        </div>
+                        {tipAmount > 0 && (
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-neutral-600">Tip</span>
+                            <span className="text-neutral-900">{formatCurrency(tipAmount)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center pt-2 border-t border-neutral-200">
+                          <span className="text-neutral-700 font-medium">Total</span>
+                          <span className="text-3xl font-bold gradient-text">
+                            {formatCurrency(totalAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
 
