@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup-db": "PGPASSWORD=531MQFYrbLwqBmTH psql -h aws-1-us-east-1.pooler.supabase.com -p 5432 -U postgres.jsyxfclzeiyjalxcwkep -d postgres -f lib/db/schema.sql",
-    "init-db": "tsx scripts/init-db.ts",
-    "reset-db": "PGPASSWORD=531MQFYrbLwqBmTH psql -h aws-1-us-east-1.pooler.supabase.com -p 5432 -U postgres.jsyxfclzeiyjalxcwkep -d postgres -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && npm run setup-db"
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio",
+    "init-db": "tsx scripts/init-db.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.34.5",

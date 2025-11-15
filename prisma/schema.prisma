@@ -26,6 +26,10 @@ model User {
   appointments    Appointment[]
   reviews         Review[]
   favorites       Favorite[]
+  notifications   Notification[]
+  notificationPreference NotificationPreference?
+  staffMember     StaffMember?
+  campaigns       Campaign[]
 
   @@map("users")
 }
@@ -108,6 +112,12 @@ model ProviderProfile {
   appointments    Appointment[]
   reviews         Review[]
   availability    Availability[]
+  portfolios      Portfolio[]
+  beforeAfterPhotos BeforeAfterPhoto[]
+  cancellationRules CancellationRule[]
+  staffMembers    StaffMember[]
+  products        Product[]
+  campaigns       Campaign[]
 
   @@map("provider_profiles")
 }
@@ -183,12 +193,33 @@ model Appointment {
   paymentStatus PaymentStatus   @default(PENDING)
   paymentId   String?
 
+  // Cancellation Policy & Deposit
+  cancellationPolicy  CancellationPolicy @default(STANDARD)
+  depositRequired     Boolean            @default(false)
+  depositAmount       Float?
+  depositPaid         Boolean            @default(false)
+  depositPaymentId    String?
+
+  // Cancellation Details
+  cancelledAt         DateTime?
+  cancelledBy         String? // userId
+  cancellationReason  String?
+  cancellationFee     Float?
+  cancellationFeePaid Boolean            @default(false)
+
   // Calendar Integration
   googleEventId String?
+
+  // Staff Assignment
+  staffMemberId String?
+  staffMember   StaffMember? @relation(fields: [staffMemberId], references: [id])
 
   // Timestamps
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+
+  // Relations
+  notifications Notification[]
 
   @@map("appointments")
 }
@@ -254,4 +285,391 @@ model Availability {
   updatedAt   DateTime        @updatedAt
 
   @@map("availability")
+}
+
+// ==================== Phase 1: Notification System ====================
+
+// Notification Preferences
+model NotificationPreference {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Channel Settings
+  emailEnabled Boolean  @default(true)
+  smsEnabled   Boolean  @default(true)
+  pushEnabled  Boolean  @default(true)
+
+  // Reminder Timing
+  reminderBefore24h Boolean @default(true)
+  reminderBefore2h  Boolean @default(true)
+  reminderBefore30m Boolean @default(false)
+
+  // Marketing
+  marketingEnabled  Boolean @default(false)
+  birthdayReminders Boolean @default(true)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("notification_preferences")
+}
+
+// Notification
+model Notification {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointmentId String?
+  appointment   Appointment?       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  type          NotificationType
+  channel       NotificationChannel
+  status        NotificationStatus @default(PENDING)
+
+  // Content
+  subject       String?
+  message       String            @db.Text
+  data          Json?             // Additional data
+
+  // Scheduling
+  scheduledFor  DateTime
+  sentAt        DateTime?
+
+  // Delivery tracking
+  deliveryId    String?           // Twilio/SendGrid ID
+  error         String?
+
+  createdAt     DateTime          @default(now())
+
+  @@index([userId, status])
+  @@index([scheduledFor])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  APPOINTMENT_REMINDER
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_RESCHEDULED
+  REVIEW_REQUEST
+  PROMOTION
+  BIRTHDAY
+  PAYMENT_RECEIVED
+  DEPOSIT_REQUIRED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// ==================== Phase 1: Cancellation Policy ====================
+
+enum CancellationPolicy {
+  FLEXIBLE   // Cancel anytime
+  MODERATE   // Cancel 12h before
+  STANDARD   // Cancel 24h before
+  STRICT     // Cancel 48h before
+}
+
+// Cancellation Rules
+model CancellationRule {
+  id              String          @id @default(cuid())
+  providerId      String
+  provider        ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  policy          CancellationPolicy @default(STANDARD)
+  hoursBeforeAppt Int             // Hours before appointment
+  feePercentage   Float           // 0-100
+  feeFixed        Float?          // Optional fixed fee
+
+  applyToNewClients Boolean       @default(true)
+  active          Boolean         @default(true)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("cancellation_rules")
+}
+
+// ==================== Phase 1: Portfolio & Photos ====================
+
+// Portfolio
+model Portfolio {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?         @db.Text
+  category    String          // "Hair", "Makeup", "Nails", etc.
+  featured    Boolean         @default(false)
+  viewCount   Int             @default(0)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  images      PortfolioImage[]
+
+  @@index([providerId, featured])
+  @@map("portfolios")
+}
+
+// Portfolio Images
+model PortfolioImage {
+  id          String    @id @default(cuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  url         String
+  thumbnail   String?
+  order       Int       @default(0)
+  caption     String?
+
+  // AI Analysis (future)
+  aiTags      String[]
+  aiQualityScore Float?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([portfolioId, order])
+  @@map("portfolio_images")
+}
+
+// Before & After Photos
+model BeforeAfterPhoto {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  beforeImage String
+  afterImage  String
+  serviceType String
+  description String?         @db.Text
+  verified    Boolean         @default(false)
+
+  likes       Int             @default(0)
+  viewCount   Int             @default(0)
+
+  createdAt   DateTime        @default(now())
+
+  @@index([providerId, verified])
+  @@map("before_after_photos")
+}
+
+// ==================== Phase 4: Staff Management ====================
+
+// Staff Member
+model StaffMember {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  userId      String          @unique
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role        StaffRole
+  permissions Json?           // Custom permissions
+  schedule    Json?           // Weekly schedule
+
+  // Employment
+  active      Boolean         @default(true)
+  hireDate    DateTime
+  terminationDate DateTime?
+
+  // Commission
+  commissionRate Float?        // Percentage
+  salary      Float?
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  appointments Appointment[]
+
+  @@index([providerId, active])
+  @@map("staff_members")
+}
+
+enum StaffRole {
+  OWNER
+  MANAGER
+  STYLIST
+  ESTHETICIAN
+  MASSAGE_THERAPIST
+  NAIL_TECHNICIAN
+  RECEPTIONIST
+}
+
+// ==================== Phase 4: Inventory Management ====================
+
+// Product
+model Product {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?         @db.Text
+  sku         String?
+  barcode     String?
+
+  // Inventory
+  quantity    Int             @default(0)
+  lowStockThreshold Int       @default(10)
+  unit        String          @default("unit") // unit, oz, ml, etc.
+
+  // Pricing
+  costPrice   Float
+  sellPrice   Float?
+
+  // Category
+  category    String
+  brand       String?
+
+  // Retail
+  availableForSale Boolean    @default(false)
+
+  active      Boolean         @default(true)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  transactions InventoryTransaction[]
+
+  @@index([providerId, active])
+  @@map("products")
+}
+
+// Inventory Transaction
+model InventoryTransaction {
+  id          String          @id @default(cuid())
+  productId   String
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type        TransactionType
+  quantity    Int             // Positive for IN, negative for OUT
+
+  // Cost tracking
+  unitCost    Float?
+  totalCost   Float?
+
+  // Reference
+  referenceType String?       // "purchase", "sale", "adjustment", "waste"
+  referenceId String?         // Order ID, Appointment ID, etc.
+
+  notes       String?
+  performedBy String?         // userId
+
+  createdAt   DateTime        @default(now())
+
+  @@index([productId, createdAt])
+  @@map("inventory_transactions")
+}
+
+enum TransactionType {
+  PURCHASE      // Stock received
+  SALE          // Sold to customer
+  ADJUSTMENT    // Manual adjustment
+  WASTE         // Expired/damaged
+  SERVICE_USE   // Used in service
+}
+
+// ==================== Phase 4: Marketing Automation ====================
+
+// Marketing Campaign
+model Campaign {
+  id          String          @id @default(cuid())
+  providerId  String?
+  provider    ProviderProfile? @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  createdBy   String
+  creator     User            @relation(fields: [createdBy], references: [id])
+
+  name        String
+  type        CampaignType
+  status      CampaignStatus  @default(DRAFT)
+
+  // Targeting
+  targetAudience Json          // Filters for recipients
+
+  // Content
+  subject     String?
+  message     String          @db.Text
+  templateId  String?
+  template    EmailTemplate?  @relation(fields: [templateId], references: [id])
+
+  // Scheduling
+  scheduledFor DateTime?
+  sentAt      DateTime?
+
+  // Analytics
+  recipientCount Int           @default(0)
+  sentCount   Int             @default(0)
+  openCount   Int             @default(0)
+  clickCount  Int             @default(0)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([providerId, status])
+  @@map("campaigns")
+}
+
+enum CampaignType {
+  EMAIL
+  SMS
+  PUSH
+  MULTI_CHANNEL
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+// Email Template
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  htmlContent String   @db.Text
+  textContent String?  @db.Text
+
+  // Variables
+  variables   String[] // ["firstName", "appointmentDate", etc.]
+
+  // Category
+  category    TemplateCategory
+
+  // Usage
+  isDefault   Boolean  @default(false)
+  active      Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaigns   Campaign[]
+
+  @@map("email_templates")
+}
+
+enum TemplateCategory {
+  APPOINTMENT_REMINDER
+  APPOINTMENT_CONFIRMATION
+  REVIEW_REQUEST
+  PROMOTION
+  BIRTHDAY
+  WELCOME
+  THANK_YOU
 }
