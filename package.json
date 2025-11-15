@@ -11,7 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "init-db": "tsx scripts/init-db.ts"
+    "init-db": "tsx scripts/init-db.ts",
+    "seed": "tsx scripts/seed-test-data.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.34.5",
