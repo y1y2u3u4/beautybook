@@ -33,15 +33,11 @@ export async function GET(request: NextRequest) {
           orderBy: { order: 'asc' },
         },
         provider: {
-          include: {
-            providerProfile: {
-              select: {
-                businessName: true,
-                city: true,
-                state: true,
-                verified: true,
-              },
-            },
+          select: {
+            businessName: true,
+            city: true,
+            state: true,
+            verified: true,
           },
         },
       },

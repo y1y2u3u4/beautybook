@@ -21,7 +21,7 @@ export async function POST(
       where: { id },
       include: {
         customer: true,
-        provider: { include: { providerProfile: true, cancellationRules: true } },
+        provider: { include: { cancellationRules: true } },
         service: true,
       },
     });

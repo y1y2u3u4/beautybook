@@ -24,11 +24,7 @@ export async function GET(
         images: {
           orderBy: { order: 'asc' },
         },
-        provider: {
-          include: {
-            providerProfile: true,
-          },
-        },
+        provider: true,
       },
     });
 
