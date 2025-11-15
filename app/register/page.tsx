@@ -87,7 +87,7 @@ export default function RegisterPage() {
             </div>
             <h2 className="text-3xl font-bold mb-4">Registration Opening Soon!</h2>
             <p className="text-lg text-primary-100 mb-6">
-              We're putting the finishing touches on our provider registration system.
+              We&apos;re putting the finishing touches on our provider registration system.
             </p>
           </div>
 
@@ -113,6 +113,12 @@ export default function RegisterPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/test-mode"
+              className="inline-block bg-yellow-400 text-neutral-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-yellow-300 transition-all duration-300 transform hover:scale-105 shadow-2xl"
+            >
+              🧪 进入测试模式
+            </Link>
             <Link
               href="/providers"
               className="inline-block bg-white text-primary-600 px-8 py-3 rounded-xl font-semibold hover:bg-primary-50 transition-colors"

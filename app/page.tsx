@@ -20,6 +20,9 @@ export default function HomePage() {
               <Link href="/providers" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
                 Find Providers
               </Link>
+              <Link href="/test-mode" className="text-yellow-700 hover:text-yellow-800 font-semibold transition-colors flex items-center gap-1">
+                🧪 Test Mode
+              </Link>
               <Link href="/about" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
                 About
               </Link>

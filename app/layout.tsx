@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import TestModeIndicator from "@/components/TestModeIndicator";
 
 export const metadata: Metadata = {
   title: "BeautyBook - Professional Beauty & Wellness Booking",
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased">
         {children}
+        <TestModeIndicator />
       </body>
     </html>
   );

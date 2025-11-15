@@ -1,5 +1,28 @@
 # Testing Guide for BeautyBook
 
+## 🚀 Quick Start (Test Mode)
+
+**No database setup required!** You can immediately start testing the UI and workflows:
+
+1. Run the development server: `npm run dev`
+2. Visit the homepage
+3. Click **🧪 Test Mode** in the navigation bar (or visit `/test-mode`)
+4. Select a test account to login
+5. Start exploring the application!
+
+**Features:**
+- ✅ Instant login with test accounts (no Clerk authentication required)
+- ✅ Test mode indicator shows current user in bottom-right corner
+- ✅ Switch between customer and provider accounts
+- ✅ All UI features work (database operations require setup)
+
+**Limitations:**
+- Test mode uses localStorage for session management
+- Full functionality (booking, payments, etc.) requires database setup
+- Data will not persist without database connection
+
+---
+
 ## Test Accounts
 
 The following test accounts have been created for development and testing:
