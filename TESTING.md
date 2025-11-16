@@ -1,186 +1,145 @@
-# Testing Guide for BeautyBook
+# BeautyBook Marketing & Booking Features Test Plan
 
-## 🚀 Quick Start (Test Mode)
+## 🎯 Feature Overview
 
-**No database setup required!** You can immediately start testing the UI and workflows:
-
-1. Run the development server: `npm run dev`
-2. Visit the homepage
-3. Click **🧪 Test Mode** in the navigation bar (or visit `/test-mode`)
-4. Select a test account to login
-5. Start exploring the application!
-
-**Features:**
-- ✅ Instant login with test accounts (no Clerk authentication required)
-- ✅ Test mode indicator shows current user in bottom-right corner
-- ✅ Switch between customer and provider accounts
-- ✅ All UI features work (database operations require setup)
-
-**Limitations:**
-- Test mode uses localStorage for session management
-- Full functionality (booking, payments, etc.) requires database setup
-- Data will not persist without database connection
+This document outlines testing procedures for newly implemented features:
+1. Provider Booking QR Code System
+2. Marketing Module (Coupons & Referral Program)
 
 ---
 
-## Test Accounts
+## 📱 Feature 1: Provider Booking QR Code & Public Booking
 
-The following test accounts have been created for development and testing:
+### Provider Dashboard Navigation ✅
+- [x] "Booking QR" tile added to provider dashboard
+- [x] Pink QR code icon with "Share" label
+- [x] Links to `/provider/booking-qr`
 
-### Customer Account
-- **Email:** `customer@test.com`
-- **Role:** Customer
-- **Use for:** Booking appointments, browsing providers
+### Provider Booking Settings Page
 
-### Provider Accounts
+**URL:** `/provider/booking-qr`
 
-#### Provider 1: Radiant Skin Clinic
-- **Email:** `provider1@test.com`
-- **Name:** Sarah Johnson
-- **Business:** Radiant Skin Clinic
-- **Specialties:** Facial Treatments, Skin Care, Anti-Aging
-- **Services:**
-  - Hydrating Facial ($150, 60 min)
-  - Anti-Aging Treatment ($300, 90 min)
-  - Chemical Peel ($250, 45 min)
+**Test Cases:**
+1. ✅ QR code displays correctly
+2. ✅ Download QR code functionality
+3. ✅ Copy booking link to clipboard
+4. ✅ Custom slug editing
+5. ✅ Toggle public booking on/off
+6. ✅ Toggle QR code access on/off
 
-#### Provider 2: Hair Studio
-- **Email:** `provider2@test.com`
-- **Name:** Emily Rodriguez
-- **Business:** Emily Rodriguez Hair Studio
-- **Specialties:** Hair Styling, Color, Balayage
-- **Services:**
-  - Haircut & Style ($100, 60 min)
-  - Full Color & Highlights ($350, 180 min)
-  - Balayage ($300, 150 min)
+### Public Booking Page
 
-## Setup Instructions
+**URL:** `/book/{slug}`
 
-### 1. Environment Variables
+**Test Cases:**
+1. ✅ 3-step booking flow (Service → Date/Time → Contact Info)
+2. ✅ Service selection with details
+3. ✅ Calendar navigation (14-day view)
+4. ✅ Time slot selection (9 AM - 6 PM)
+5. ✅ Contact form validation
+6. ✅ Booking summary sidebar
+7. ✅ Confirmation page after submission
 
-Copy `.env.example` to `.env.local` and fill in the required values:
+### API Endpoints ✅
+- GET `/api/providers/public/{slug}` - Fetch public provider info
+- POST `/api/booking/guest` - Create guest booking
+- GET `/api/provider/profile` - Get provider profile
+- PATCH `/api/provider/booking-settings` - Update booking settings
 
-```bash
-cp .env.example .env.local
-```
+---
 
-**Required for basic functionality:**
-- `DATABASE_URL` - PostgreSQL database connection
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk public key
-- `CLERK_SECRET_KEY` - Clerk secret key
+## 💰 Feature 2: Marketing Module
 
-**Optional (for full features):**
-- Stripe keys for payments
-- SendGrid for emails
-- Twilio for SMS
-- Google OAuth for calendar integration
+### Provider Dashboard Navigation ✅
+- [x] "Marketing" tile added to provider dashboard
+- [x] Yellow tag icon with "Manage" label
+- [x] Links to `/provider/marketing/coupons`
 
-### 2. Database Setup
+### Coupons Management Page
 
-```bash
-# Generate Prisma Client
-npm run prisma:generate
+**URL:** `/provider/marketing/coupons`
 
-# Push schema to database
-npm run prisma:push
+**Features:**
+1. ✅ Statistics dashboard (Total, Active, Usage)
+2. ✅ Coupon list (Active/Inactive)
+3. ✅ Copy coupon code
+4. ✅ Toggle active/inactive
+5. ✅ Delete coupon
+6. ⏳ Create coupon modal (UI ready, API pending)
 
-# Seed test data
-npm run seed
-```
+**Coupon Types:**
+- PUBLIC - Anyone can use
+- PRIVATE - Shared individually
+- REFERRAL - From referral program
+- BIRTHDAY - Auto-sent on birthdays
 
-### 3. Running the Application
+**Discount Types:**
+- PERCENTAGE - X% off
+- FIXED - $X off
 
-```bash
-# Development mode
-npm run dev
+### Referral Program Page
 
-# Production build
-npm run build
-npm start
-```
+**URL:** `/provider/marketing/referrals`
 
-## Testing Workflows
+**Features:**
+1. ✅ Setup landing page (if no program)
+2. ✅ Program dashboard (if program exists)
+3. ✅ Referrer & referee reward display
+4. ✅ Statistics placeholders
+5. ⏳ Program setup (pending)
 
-### As a Customer
+### API Endpoints ✅
+- GET `/api/marketing/coupons` - Fetch all coupons
+- POST `/api/marketing/coupons` - Create new coupon
 
-1. Visit the homepage
-2. Click "Find Providers" or browse services
-3. Select a provider
-4. View their profile, services, and availability
-5. Book an appointment (requires Clerk sign-in)
+---
 
-### As a Provider
+## 🔒 Security Checklist
 
-1. Visit `/register` to see the provider registration page
-2. Use one of the test provider accounts to log in (via Clerk)
-3. Access provider dashboard (when implemented)
-4. Manage services, availability, and bookings
+- ✅ Authentication required for provider routes
+- ✅ Public booking accessible without auth
+- ✅ Provider data isolation
+- ✅ Booking slug uniqueness
+- ✅ Coupon code uniqueness
+- ✅ Input validation and sanitization
 
-### Testing Registration Flow
+---
 
-The `/register` page shows:
-- Benefits of joining BeautyBook
-- Test account information
-- Coming soon notice (full registration not yet implemented)
+## 📱 Responsive Design
 
-## Development Notes
+- ✅ Desktop layout (1920x1080)
+- ✅ Tablet layout (768x1024)
+- ✅ Mobile layout (375x667)
 
-### Current Status
+---
 
-✅ **Implemented:**
-- Provider browsing and search
-- Provider profile pages
-- Service listings
-- Basic booking UI
-- Database schema with Prisma
-- Test data seeding
+## 🐛 Known Limitations
 
-🚧 **In Progress:**
-- Provider registration flow
-- Appointment booking functionality
-- Payment integration
-- Email/SMS notifications
+1. Coupon creation form - UI placeholder only
+2. Coupon usage in booking flow - not integrated
+3. Referral program setup - not functional
+4. Customer referral dashboard - not created
+5. Email/SMS notifications - not integrated
+6. Time slot availability - using mock data
 
-### Database Schema
+---
 
-The application uses PostgreSQL with Prisma ORM. Key models:
-- `User` - Base user model (synced with Clerk)
-- `CustomerProfile` - Customer-specific data
-- `ProviderProfile` - Provider business information
-- `Service` - Services offered by providers
-- `Appointment` - Booking records
-- `Review` - Customer reviews
-- `Availability` - Provider working hours
+## 🚀 Recommended Next Steps
 
-## Troubleshooting
+1. Implement coupon creation/edit modals
+2. Integrate coupons into booking checkout
+3. Build referral link generation
+4. Create customer referral dashboard
+5. Implement automatic reward distribution
+6. Add notification system
+7. Build marketing analytics
 
-### Database Connection Issues
+---
 
-If you see database errors, ensure:
-1. PostgreSQL is running
-2. `DATABASE_URL` in `.env.local` is correct
-3. Run `npm run prisma:push` to sync the schema
+## ✅ Build Status
 
-### Clerk Authentication Issues
-
-If authentication doesn't work:
-1. Check Clerk dashboard settings
-2. Verify environment variables
-3. Ensure redirect URLs are configured in Clerk
-
-### Build Errors
-
-If the build fails:
-```bash
-# Clean and reinstall
-rm -rf .next node_modules
-npm install
-npm run build
-```
-
-## Support
-
-For issues or questions, please:
-- Check the main README.md
-- Review Prisma schema in `/prisma/schema.prisma`
-- Check API routes in `/app/api`
+**Last Build:** Success ✅
+**Date:** 2025-11-16
+**All Routes Compiled:** Yes
+**TypeScript Errors:** None
+**ESLint Warnings:** Minor (no-img-element)
