@@ -4,9 +4,9 @@ import { useTestUser } from '@/hooks/useTestUser';
 import Link from 'next/link';
 
 export default function TestModeIndicator() {
-  const { testUser, isTestMode, logoutTestUser } = useTestUser();
+  const { testUser, isTestMode, isLoading, logoutTestUser } = useTestUser();
 
-  if (!isTestMode || !testUser) return null;
+  if (isLoading || !isTestMode || !testUser) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-sm">

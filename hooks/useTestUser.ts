@@ -15,6 +15,7 @@ export interface TestUser {
 export function useTestUser() {
   const [testUser, setTestUser] = useState<TestUser | null>(null);
   const [isTestMode, setIsTestMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check if we're in test mode
@@ -32,6 +33,7 @@ export function useTestUser() {
         localStorage.removeItem('testMode');
       }
     }
+    setIsLoading(false);
   }, []);
 
   const loginTestUser = (user: TestUser) => {
@@ -51,6 +53,7 @@ export function useTestUser() {
   return {
     testUser,
     isTestMode,
+    isLoading,
     loginTestUser,
     logoutTestUser,
   };
