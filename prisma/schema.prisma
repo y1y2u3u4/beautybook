@@ -102,6 +102,11 @@ model ProviderProfile {
   // Business Hours
   businessHours   Json?
 
+  // Public Booking & QR Code
+  bookingSlug         String?  @unique
+  qrCodeEnabled       Boolean  @default(true)
+  publicBookingEnabled Boolean @default(true)
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
