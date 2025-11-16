@@ -61,12 +61,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-/**
- * Configuration for file uploads
- */
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

@@ -178,6 +178,6 @@ async function getRecipients(
 
   return users.map(u => ({
     email: u.email,
-    phone: u.customerProfile?.phone,
+    phone: u.customerProfile?.phone ?? undefined,
   }));
 }

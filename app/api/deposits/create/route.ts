@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 
 const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-12-18.acacia' })
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-10-29.clover' })
   : null;
 
 /**
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       where: { id: appointmentId },
       include: {
         customer: true,
-        provider: { include: { providerProfile: true } },
+        provider: true,
         service: true,
       },
     });
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         providerId: appointment.providerId,
         serviceId: appointment.serviceId,
       },
-      description: `Deposit for ${appointment.service.name} - ${appointment.provider.providerProfile.businessName}`,
+      description: `Deposit for ${appointment.service.name} - ${appointment.provider.businessName}`,
     });
 
     return NextResponse.json({

@@ -1,0 +1,5 @@
+# Vercel deployment ignore
+.git
+node_modules
+.env.local
+.next

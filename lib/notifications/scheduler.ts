@@ -30,7 +30,7 @@ export async function createNotification(options: CreateNotificationOptions) {
         where: { id: appointmentId },
         include: {
           customer: { include: { customerProfile: true } },
-          provider: { include: { providerProfile: true } },
+          provider: true,
           service: true,
         },
       })
@@ -47,11 +47,11 @@ export async function createNotification(options: CreateNotificationOptions) {
   if (appointment) {
     const appointmentData = {
       customerName: `${appointment.customer.firstName} ${appointment.customer.lastName}`,
-      providerName: appointment.provider.providerProfile.businessName,
+      providerName: appointment.provider.businessName,
       serviceName: appointment.service.name,
       date: appointment.date,
       time: appointment.startTime,
-      address: appointment.provider.providerProfile.address,
+      address: appointment.provider.address,
       amount: appointment.amount,
     };
 
