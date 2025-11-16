@@ -63,9 +63,9 @@ export default function TestModePage() {
     // Redirect based on role
     setTimeout(() => {
       if (account.role === 'PROVIDER') {
-        router.push('/providers');
+        router.push('/provider/dashboard');
       } else {
-        router.push('/');
+        router.push('/customer/appointments');
       }
     }, 500);
   };
