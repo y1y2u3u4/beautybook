@@ -30,6 +30,10 @@ model User {
   notificationPreference NotificationPreference?
   staffMember     StaffMember?
   campaigns       Campaign[]
+  couponUsages    CouponUsage[]
+  referralsGiven  Referral[]      @relation("Referrer")
+  referralsReceived Referral[]    @relation("Referee")
+  wallet          CustomerWallet?
 
   @@map("users")
 }
@@ -123,6 +127,9 @@ model ProviderProfile {
   staffMembers    StaffMember[]
   products        Product[]
   campaigns       Campaign[]
+  coupons         Coupon[]
+  referralProgram ReferralProgram?
+  referrals       Referral[]
 
   @@map("provider_profiles")
 }
@@ -677,4 +684,201 @@ enum TemplateCategory {
   BIRTHDAY
   WELCOME
   THANK_YOU
+}
+
+// ==================== Phase 5: Marketing & Promotions ====================
+
+// Coupon/Discount Code
+model Coupon {
+  id          String       @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Coupon Details
+  code        String       @unique
+  name        String
+  description String?      @db.Text
+  type        CouponType
+
+  // Discount Value
+  discountType DiscountType  // PERCENTAGE or FIXED
+  discountValue Float        // 20 (for 20%) or 50 (for $50)
+  maxDiscount  Float?        // Max discount amount for percentage coupons
+  minPurchase  Float?        // Minimum purchase amount required
+
+  // Validity
+  startDate   DateTime
+  endDate     DateTime?
+  active      Boolean      @default(true)
+
+  // Usage Limits
+  usageLimit  Int?         // Max total uses (null = unlimited)
+  usageCount  Int          @default(0)
+  perUserLimit Int?        // Max uses per user
+
+  // Applicability
+  applicableServices String[] // Service IDs (empty = all services)
+  newCustomersOnly Boolean  @default(false)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  usages      CouponUsage[]
+
+  @@index([providerId, active])
+  @@index([code])
+  @@map("coupons")
+}
+
+enum CouponType {
+  PUBLIC          // Anyone can use
+  PRIVATE         // Need to be shared directly
+  REFERRAL        // From referral program
+  BIRTHDAY        // Auto-sent on birthdays
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+// Coupon Usage
+model CouponUsage {
+  id            String      @id @default(cuid())
+  couponId      String
+  coupon        Coupon      @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  customerId    String
+  customer      User        @relation(fields: [customerId], references: [id])
+
+  appointmentId String?     @unique
+
+  discountAmount Float      // Actual discount applied
+  usedAt        DateTime    @default(now())
+
+  @@index([couponId, customerId])
+  @@map("coupon_usages")
+}
+
+// Referral Program
+model ReferralProgram {
+  id            String          @id @default(cuid())
+  providerId    String          @unique
+  provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Program Settings
+  active        Boolean         @default(true)
+
+  // Referrer Rewards (person who shares)
+  referrerRewardType DiscountType
+  referrerRewardValue Float      // e.g., 20 for 20% or $20
+  referrerMaxReward Float?
+
+  // Referee Rewards (new customer)
+  refereeRewardType DiscountType
+  refereeRewardValue Float
+  refereeMaxReward Float?
+
+  // Conditions
+  minPurchaseAmount Float?      // Minimum first purchase to qualify
+  referralExpireDays Int @default(90) // Days before referral link expires
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("referral_programs")
+}
+
+// Referral
+model Referral {
+  id            String      @id @default(cuid())
+
+  // Who referred
+  referrerId    String
+  referrer      User        @relation("Referrer", fields: [referrerId], references: [id])
+
+  // Who was referred
+  refereeId     String
+  referee       User        @relation("Referee", fields: [refereeId], references: [id])
+
+  providerId    String
+  provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Referral Link
+  referralCode  String      @unique
+
+  // Status
+  status        ReferralStatus @default(PENDING)
+
+  // First appointment by referee
+  firstAppointmentId String?
+  completedAt   DateTime?    // When referee completed first appointment
+
+  // Rewards
+  referrerRewardAmount Float?
+  refereeRewardAmount Float?
+  rewardsIssued Boolean     @default(false)
+
+  createdAt     DateTime    @default(now())
+  expiresAt     DateTime?
+
+  @@index([referrerId])
+  @@index([refereeId])
+  @@index([providerId])
+  @@index([referralCode])
+  @@map("referrals")
+}
+
+enum ReferralStatus {
+  PENDING        // Link shared but not used yet
+  REGISTERED     // Referee signed up
+  COMPLETED      // Referee completed first appointment
+  EXPIRED        // Link expired
+  CANCELLED      // Cancelled for some reason
+}
+
+// Customer Wallet (for storing credits from referrals)
+model CustomerWallet {
+  id            String      @id @default(cuid())
+  customerId    String      @unique
+  customer      User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  balance       Float       @default(0)
+  totalEarned   Float       @default(0)
+  totalSpent    Float       @default(0)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  transactions  WalletTransaction[]
+
+  @@map("customer_wallets")
+}
+
+// Wallet Transaction
+model WalletTransaction {
+  id            String        @id @default(cuid())
+  walletId      String
+  wallet        CustomerWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  type          TransactionKind
+  amount        Float
+  description   String
+
+  referenceType String?       // "referral", "coupon", "refund"
+  referenceId   String?
+
+  balanceBefore Float
+  balanceAfter  Float
+
+  createdAt     DateTime      @default(now())
+
+  @@index([walletId, createdAt])
+  @@map("wallet_transactions")
+}
+
+enum TransactionKind {
+  CREDIT        // Money added
+  DEBIT         // Money spent
 }

@@ -4,7 +4,7 @@ import { useTestUser } from '@/hooks/useTestUser';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Calendar, Users, DollarSign, Star, Clock, TrendingUp, QrCode } from 'lucide-react';
+import { Calendar, Users, DollarSign, Star, Clock, TrendingUp, QrCode, Tag } from 'lucide-react';
 
 export default function ProviderDashboard() {
   const { testUser, isTestMode, isLoading } = useTestUser();
@@ -219,6 +219,21 @@ export default function ProviderDashboard() {
               <div>
                 <div className="text-sm text-neutral-600">View</div>
                 <div className="font-semibold text-neutral-900">Analytics</div>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/provider/marketing/coupons"
+            className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-neutral-200"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <Tag className="w-6 h-6 text-yellow-600" />
+              </div>
+              <div>
+                <div className="text-sm text-neutral-600">Manage</div>
+                <div className="font-semibold text-neutral-900">Marketing</div>
               </div>
             </div>
           </Link>
