@@ -4,7 +4,7 @@ import { useTestUser } from '@/hooks/useTestUser';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { User, Mail, Phone, Calendar, DollarSign, Edit, Trash2, Plus, CheckCircle, XCircle } from 'lucide-react';
+import { User, Mail, Phone, Calendar, DollarSign, Edit, Trash2, Plus, CheckCircle, XCircle, X } from 'lucide-react';
 
 type StaffRole = 'OWNER' | 'MANAGER' | 'STYLIST' | 'ESTHETICIAN' | 'MASSAGE_THERAPIST' | 'NAIL_TECHNICIAN' | 'RECEPTIONIST';
 
@@ -47,6 +47,11 @@ export default function ProviderStaff() {
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [selectedRole, setSelectedRole] = useState<StaffRole | 'all'>('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
   useEffect(() => {
     if (!isLoading && (!isTestMode || testUser?.role !== 'PROVIDER')) {
@@ -230,7 +235,10 @@ export default function ProviderStaff() {
               </select>
             </div>
 
-            <button className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+            >
               <Plus className="w-5 h-5" />
               Add Staff
             </button>
@@ -337,21 +345,399 @@ export default function ProviderStaff() {
               </div>
 
               <div className="flex gap-2">
-                <button className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors">
+                <button
+                  onClick={() => {
+                    setSelectedStaff(staff);
+                    setShowScheduleModal(true);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                >
                   <Calendar className="w-4 h-4" />
                   View Schedule
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-2 bg-neutral-200 text-neutral-700 px-4 py-2 rounded-lg font-semibold hover:bg-neutral-300 transition-colors">
+                <button
+                  onClick={() => {
+                    setSelectedStaff(staff);
+                    setShowEditModal(true);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-neutral-200 text-neutral-700 px-4 py-2 rounded-lg font-semibold hover:bg-neutral-300 transition-colors"
+                >
                   <Edit className="w-4 h-4" />
                   Edit Details
                 </button>
-                <button className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-semibold hover:bg-red-200 transition-colors">
+                <button
+                  onClick={() => {
+                    setSelectedStaff(staff);
+                    setShowDeleteModal(true);
+                  }}
+                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-semibold hover:bg-red-200 transition-colors"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ))}
         </div>
+
+        {/* Add Staff Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-6 border-b border-neutral-200">
+                <h2 className="text-2xl font-bold text-neutral-900">Add New Staff Member</h2>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-6">
+                <div className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="John Doe"
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Role *
+                      </label>
+                      <select className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        {Object.entries(roleLabels).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="john@example.com"
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        placeholder="(555) 123-4567"
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Hire Date *
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Compensation Type
+                    </label>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-neutral-600 mb-1">
+                          Commission Rate (%)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="40"
+                          className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-neutral-600 mb-1">
+                          Annual Salary ($)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="50000"
+                          className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-neutral-500 mt-1">Choose commission OR salary</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-6 border-t border-neutral-200">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    alert('In production, this would add the staff member to the database');
+                    setShowAddModal(false);
+                  }}
+                  className="flex-1 px-4 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                >
+                  Add Staff Member
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Staff Modal */}
+        {showEditModal && selectedStaff && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-6 border-b border-neutral-200">
+                <h2 className="text-2xl font-bold text-neutral-900">Edit Staff Member</h2>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-6">
+                <div className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        defaultValue={selectedStaff.name}
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Role *
+                      </label>
+                      <select
+                        defaultValue={selectedStaff.role}
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      >
+                        {Object.entries(roleLabels).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        defaultValue={selectedStaff.email}
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        defaultValue={selectedStaff.phone}
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Status
+                    </label>
+                    <select
+                      defaultValue={selectedStaff.active ? 'active' : 'inactive'}
+                      className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Compensation
+                    </label>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-neutral-600 mb-1">
+                          Commission Rate (%)
+                        </label>
+                        <input
+                          type="number"
+                          defaultValue={selectedStaff.commissionRate || ''}
+                          placeholder="40"
+                          className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-neutral-600 mb-1">
+                          Annual Salary ($)
+                        </label>
+                        <input
+                          type="number"
+                          defaultValue={selectedStaff.salary || ''}
+                          placeholder="50000"
+                          className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-6 border-t border-neutral-200">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    alert('In production, this would update the staff member in the database');
+                    setShowEditModal(false);
+                  }}
+                  className="flex-1 px-4 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && selectedStaff && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-8 h-8 text-red-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+                  Delete Staff Member?
+                </h2>
+                <p className="text-neutral-600 mb-6">
+                  Are you sure you want to delete <strong>{selectedStaff.name}</strong>? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      alert('In production, this would delete the staff member from the database');
+                      setShowDeleteModal(false);
+                    }}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Schedule Modal */}
+        {showScheduleModal && selectedStaff && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full my-8">
+              <div className="flex items-center justify-between p-6 border-b border-neutral-200">
+                <h2 className="text-2xl font-bold text-neutral-900">
+                  {selectedStaff.name}&apos;s Schedule
+                </h2>
+                <button
+                  onClick={() => setShowScheduleModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <div className="grid grid-cols-7 gap-2 mb-4">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                    <div key={day} className="text-center font-semibold text-neutral-700 py-2">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-7 gap-2">
+                  {Array.from({ length: 35 }, (_, i) => {
+                    const hasAppointment = Math.random() > 0.7;
+                    return (
+                      <div
+                        key={i}
+                        className={`aspect-square p-2 rounded-lg border ${
+                          hasAppointment
+                            ? 'bg-primary-100 border-primary-300 cursor-pointer hover:bg-primary-200'
+                            : 'bg-neutral-50 border-neutral-200'
+                        }`}
+                      >
+                        <div className="text-sm font-semibold text-neutral-900">
+                          {i + 1}
+                        </div>
+                        {hasAppointment && (
+                          <div className="text-xs text-primary-700 mt-1">
+                            {Math.floor(Math.random() * 3) + 1} appts
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> This is a simplified calendar view. In production, you would see detailed appointment times, customer names, and service information.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-neutral-200">
+                <button
+                  onClick={() => setShowScheduleModal(false)}
+                  className="w-full px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Test Mode Notice */}
         <div className="mt-8 bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6">

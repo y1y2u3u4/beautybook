@@ -4,7 +4,7 @@ import { useTestUser } from '@/hooks/useTestUser';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Clock, DollarSign, Edit, Trash2, Plus } from 'lucide-react';
+import { Clock, DollarSign, Edit, Trash2, Plus, X } from 'lucide-react';
 
 interface Service {
   id: string;
@@ -20,6 +20,10 @@ export default function ProviderServices() {
   const { testUser, isTestMode, isLoading } = useTestUser();
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
 
   useEffect(() => {
     if (!isLoading && (!isTestMode || testUser?.role !== 'PROVIDER')) {
@@ -128,7 +132,10 @@ export default function ProviderServices() {
               ))}
             </div>
 
-            <button className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+            >
               <Plus className="w-5 h-5" />
               Add New Service
             </button>
@@ -190,17 +197,289 @@ export default function ProviderServices() {
               </div>
 
               <div className="flex gap-2">
-                <button className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors">
+                <button
+                  onClick={() => {
+                    setSelectedService(service);
+                    setShowEditModal(true);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                >
                   <Edit className="w-4 h-4" />
                   Edit
                 </button>
-                <button className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-semibold hover:bg-red-200 transition-colors">
+                <button
+                  onClick={() => {
+                    setSelectedService(service);
+                    setShowDeleteModal(true);
+                  }}
+                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-semibold hover:bg-red-200 transition-colors"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ))}
         </div>
+
+        {/* Add Service Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-6 border-b border-neutral-200">
+                <h2 className="text-2xl font-bold text-neutral-900">Add New Service</h2>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Service Name *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Hydrating Facial"
+                      className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Description *
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Detailed description of the service..."
+                      className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Category *
+                      </label>
+                      <select className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="Facial">Facial</option>
+                        <option value="Skin Treatment">Skin Treatment</option>
+                        <option value="Massage">Massage</option>
+                        <option value="Hair">Hair</option>
+                        <option value="Nails">Nails</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Duration (min) *
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="60"
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Price ($) *
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="150"
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Status
+                    </label>
+                    <select className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                      <option value="active">Active (visible to customers)</option>
+                      <option value="inactive">Inactive (hidden from customers)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-6 border-t border-neutral-200">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    alert('In production, this would add the service to the database');
+                    setShowAddModal(false);
+                  }}
+                  className="flex-1 px-4 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                >
+                  Add Service
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Service Modal */}
+        {showEditModal && selectedService && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8 max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-6 border-b border-neutral-200">
+                <h2 className="text-2xl font-bold text-neutral-900">Edit Service</h2>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Service Name *
+                    </label>
+                    <input
+                      type="text"
+                      defaultValue={selectedService.name}
+                      className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Description *
+                    </label>
+                    <textarea
+                      rows={3}
+                      defaultValue={selectedService.description}
+                      className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Category *
+                      </label>
+                      <select
+                        defaultValue={selectedService.category}
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      >
+                        <option value="Facial">Facial</option>
+                        <option value="Skin Treatment">Skin Treatment</option>
+                        <option value="Massage">Massage</option>
+                        <option value="Hair">Hair</option>
+                        <option value="Nails">Nails</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Duration (min) *
+                      </label>
+                      <input
+                        type="number"
+                        defaultValue={selectedService.duration}
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Price ($) *
+                      </label>
+                      <input
+                        type="number"
+                        defaultValue={selectedService.price}
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Status
+                    </label>
+                    <select
+                      defaultValue={selectedService.active ? 'active' : 'inactive'}
+                      className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >
+                      <option value="active">Active (visible to customers)</option>
+                      <option value="inactive">Inactive (hidden from customers)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-6 border-t border-neutral-200">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    alert('In production, this would update the service in the database');
+                    setShowEditModal(false);
+                  }}
+                  className="flex-1 px-4 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && selectedService && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-8 h-8 text-red-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+                  Delete Service?
+                </h2>
+                <p className="text-neutral-600 mb-6">
+                  Are you sure you want to delete <strong>{selectedService.name}</strong>? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      alert('In production, this would delete the service from the database');
+                      setShowDeleteModal(false);
+                    }}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Test Mode Notice */}
         <div className="mt-8 bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6">
