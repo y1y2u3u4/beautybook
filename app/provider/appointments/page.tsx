@@ -157,24 +157,24 @@ export default function ProviderAppointments() {
     }
   };
 
-  // 智能分配逻辑
+  // Smart assignment logic
   const handleSmartAssignment = () => {
     const unassignedAppointments = appointments.filter(
       apt => !apt.assignedStaff && (apt.status === 'pending' || apt.status === 'confirmed')
     );
 
     if (unassignedAppointments.length === 0) {
-      setAssignmentResult('没有待分配的预约');
+      setAssignmentResult('No unassigned appointments found');
       setTimeout(() => setAssignmentResult(null), 3000);
       return;
     }
 
-    // 根据选择的策略分配
+    // Assign based on selected strategy
     let assignedCount = 0;
 
     switch (selectedStrategy) {
       case 'balanced':
-        // 平均分配：均匀分配给所有员工
+        // Balanced distribution: Evenly distribute across all staff
         unassignedAppointments.forEach((apt, index) => {
           apt.assignedStaff = staffMembers[index % staffMembers.length].id;
           assignedCount++;
@@ -182,29 +182,29 @@ export default function ProviderAppointments() {
         break;
 
       case 'skill-based':
-        // 技能匹配：根据服务类型匹配员工
+        // Skill matching: Match services to staff expertise
         unassignedAppointments.forEach((apt) => {
-          // 简化示例：根据服务名称关键词匹配
+          // Match based on service keywords
           if (apt.service.toLowerCase().includes('facial') || apt.service.toLowerCase().includes('skin')) {
-            apt.assignedStaff = 'staff_1'; // Sarah - 面部护理专家
+            apt.assignedStaff = 'staff_1'; // Sarah - Facial specialist
           } else if (apt.service.toLowerCase().includes('massage') || apt.service.toLowerCase().includes('body')) {
-            apt.assignedStaff = 'staff_3'; // Jessica - 按摩专家
+            apt.assignedStaff = 'staff_3'; // Jessica - Massage specialist
           } else {
-            apt.assignedStaff = 'staff_2'; // Amanda - 通用
+            apt.assignedStaff = 'staff_2'; // Amanda - General services
           }
           assignedCount++;
         });
         break;
 
       case 'availability':
-        // 按可用时间分配：优先分配给预约少的员工
+        // Availability-based: Prioritize staff with fewer appointments
         const staffWorkload = staffMembers.map(staff => ({
           id: staff.id,
           count: appointments.filter(apt => apt.assignedStaff === staff.id).length
         }));
 
         unassignedAppointments.forEach((apt) => {
-          // 找到工作量最少的员工
+          // Find staff member with lowest workload
           staffWorkload.sort((a, b) => a.count - b.count);
           apt.assignedStaff = staffWorkload[0].id;
           staffWorkload[0].count++;
@@ -213,7 +213,7 @@ export default function ProviderAppointments() {
         break;
 
       case 'random':
-        // 随机分配
+        // Random assignment
         unassignedAppointments.forEach((apt) => {
           const randomIndex = Math.floor(Math.random() * staffMembers.length);
           apt.assignedStaff = staffMembers[randomIndex].id;
@@ -222,7 +222,7 @@ export default function ProviderAppointments() {
         break;
     }
 
-    setAssignmentResult(`成功分配 ${assignedCount} 个预约！`);
+    setAssignmentResult(`Successfully assigned ${assignedCount} appointments!`);
     setShowAssignmentModal(false);
     setTimeout(() => setAssignmentResult(null), 3000);
   };
@@ -282,7 +282,7 @@ export default function ProviderAppointments() {
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg"
             >
               <Zap className="w-4 h-4" />
-              智能分配
+              Smart Assignment
               {unassignedCount > 0 && (
                 <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
                   {unassignedCount}
@@ -307,7 +307,7 @@ export default function ProviderAppointments() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-neutral-900 flex items-center gap-2">
                   <Zap className="w-6 h-6 text-purple-600" />
-                  智能分配预约
+                  Smart Appointment Assignment
                 </h2>
                 <button
                   onClick={() => setShowAssignmentModal(false)}
@@ -319,25 +319,25 @@ export default function ProviderAppointments() {
 
               <div className="mb-6">
                 <p className="text-neutral-600 mb-4">
-                  选择分配策略，系统将自动为未分配的预约分配合适的员工。
+                  Select an assignment strategy and the system will automatically assign unassigned appointments to appropriate staff members.
                 </p>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
                   <p className="text-sm font-semibold text-purple-900">
-                    待分配预约: <span className="text-purple-600">{unassignedCount}</span> 个
+                    Unassigned Appointments: <span className="text-purple-600">{unassignedCount}</span>
                   </p>
                 </div>
               </div>
 
               <div className="space-y-3 mb-6">
                 <label className="text-sm font-semibold text-neutral-700 block mb-2">
-                  分配策略:
+                  Assignment Strategy:
                 </label>
 
                 {[
-                  { value: 'balanced', label: '均衡分配', desc: '均匀分配给所有员工，确保工作量平衡' },
-                  { value: 'skill-based', label: '技能匹配', desc: '根据服务类型匹配最合适的员工' },
-                  { value: 'availability', label: '负载优先', desc: '优先分配给当前预约较少的员工' },
-                  { value: 'random', label: '随机分配', desc: '随机分配给可用员工' },
+                  { value: 'balanced', label: 'Balanced Distribution', desc: 'Evenly distribute across all staff to ensure balanced workload' },
+                  { value: 'skill-based', label: 'Skill Matching', desc: 'Match appointments to staff based on service type and expertise' },
+                  { value: 'availability', label: 'Workload Priority', desc: 'Prioritize staff members with fewer current appointments' },
+                  { value: 'random', label: 'Random Assignment', desc: 'Randomly assign to available staff members' },
                 ].map((strategy) => (
                   <button
                     key={strategy.value}
@@ -376,13 +376,13 @@ export default function ProviderAppointments() {
                   onClick={() => setShowAssignmentModal(false)}
                   className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
                 >
-                  取消
+                  Cancel
                 </button>
                 <button
                   onClick={handleSmartAssignment}
                   className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md"
                 >
-                  开始分配
+                  Start Assignment
                 </button>
               </div>
             </div>
