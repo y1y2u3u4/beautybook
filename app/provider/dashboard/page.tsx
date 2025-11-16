@@ -115,7 +115,7 @@ export default function ProviderDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-5 gap-4 mb-8">
+        <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <Link
             href="/provider/appointments"
             className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-neutral-200"
@@ -174,6 +174,21 @@ export default function ProviderDashboard() {
               <div>
                 <div className="text-sm text-neutral-600">View</div>
                 <div className="font-semibold text-neutral-900">Customers</div>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/provider/staff"
+            className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-neutral-200"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Users className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <div className="text-sm text-neutral-600">Manage</div>
+                <div className="font-semibold text-neutral-900">Staff</div>
               </div>
             </div>
           </Link>

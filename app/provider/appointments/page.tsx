@@ -4,7 +4,7 @@ import { useTestUser } from '@/hooks/useTestUser';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, User, Phone, Mail, MapPin, DollarSign, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, User, Phone, Mail, MapPin, DollarSign, CheckCircle, XCircle, AlertCircle, Users } from 'lucide-react';
 
 type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
@@ -20,6 +20,7 @@ interface Appointment {
   price: number;
   status: AppointmentStatus;
   notes?: string;
+  assignedStaff?: string;
 }
 
 export default function ProviderAppointments() {
@@ -48,6 +49,12 @@ export default function ProviderAppointments() {
     return null;
   }
 
+  const staffMembers = [
+    { id: 'staff_1', name: 'Sarah Johnson' },
+    { id: 'staff_2', name: 'Amanda Martinez' },
+    { id: 'staff_3', name: 'Jessica Wong' },
+  ];
+
   const appointments: Appointment[] = [
     {
       id: '1',
@@ -61,6 +68,7 @@ export default function ProviderAppointments() {
       price: 150,
       status: 'confirmed',
       notes: 'First time customer, sensitive skin',
+      assignedStaff: 'staff_2',
     },
     {
       id: '2',
@@ -73,6 +81,7 @@ export default function ProviderAppointments() {
       duration: 90,
       price: 300,
       status: 'confirmed',
+      assignedStaff: 'staff_1',
     },
     {
       id: '3',
@@ -279,6 +288,33 @@ export default function ProviderAppointments() {
                     <div className="text-sm text-blue-800">{appointment.notes}</div>
                   </div>
                 )}
+
+                {/* Staff Assignment */}
+                <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-purple-900 mb-2">
+                    <Users className="w-4 h-4" />
+                    Assigned Staff Member:
+                  </div>
+                  {(appointment.status === 'pending' || appointment.status === 'confirmed') ? (
+                    <select
+                      value={appointment.assignedStaff || ''}
+                      className="w-full px-3 py-2 border border-purple-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      <option value="">Not assigned</option>
+                      {staffMembers.map((staff) => (
+                        <option key={staff.id} value={staff.id}>
+                          {staff.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="text-sm text-purple-800">
+                      {appointment.assignedStaff
+                        ? staffMembers.find(s => s.id === appointment.assignedStaff)?.name || 'Unknown'
+                        : 'Not assigned'}
+                    </div>
+                  )}
+                </div>
 
                 {appointment.status === 'pending' && (
                   <div className="mt-4 flex gap-2">
