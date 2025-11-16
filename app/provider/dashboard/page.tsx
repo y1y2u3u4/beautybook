@@ -115,7 +115,7 @@ export default function ProviderDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
+        <div className="grid md:grid-cols-5 gap-4 mb-8">
           <Link
             href="/provider/appointments"
             className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-neutral-200"
@@ -127,6 +127,23 @@ export default function ProviderDashboard() {
               <div>
                 <div className="text-sm text-neutral-600">Manage</div>
                 <div className="font-semibold text-neutral-900">Appointments</div>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/provider/calendar-sync"
+            className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-neutral-200"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm text-neutral-600">Sync</div>
+                <div className="font-semibold text-neutral-900">Google Calendar</div>
               </div>
             </div>
           </Link>
