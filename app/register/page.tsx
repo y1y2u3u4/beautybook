@@ -117,7 +117,7 @@ export default function RegisterPage() {
               href="/test-mode"
               className="inline-block bg-yellow-400 text-neutral-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-yellow-300 transition-all duration-300 transform hover:scale-105 shadow-2xl"
             >
-              🧪 进入测试模式
+              🧪 Enter Test Mode
             </Link>
             <Link
               href="/providers"
