@@ -4,7 +4,7 @@ import { useTestUser } from '@/hooks/useTestUser';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, User, Phone, Mail, MapPin, DollarSign, CheckCircle, XCircle, AlertCircle, Users } from 'lucide-react';
+import { Calendar, Clock, User, Phone, Mail, MapPin, DollarSign, CheckCircle, XCircle, AlertCircle, Users, Zap, X } from 'lucide-react';
 
 type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
@@ -23,10 +23,15 @@ interface Appointment {
   assignedStaff?: string;
 }
 
+type AssignmentStrategy = 'balanced' | 'skill-based' | 'availability' | 'random';
+
 export default function ProviderAppointments() {
   const { testUser, isTestMode, isLoading } = useTestUser();
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | AppointmentStatus>('all');
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedStrategy, setSelectedStrategy] = useState<AssignmentStrategy>('balanced');
+  const [assignmentResult, setAssignmentResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && (!isTestMode || testUser?.role !== 'PROVIDER')) {
@@ -152,6 +157,80 @@ export default function ProviderAppointments() {
     }
   };
 
+  // 智能分配逻辑
+  const handleSmartAssignment = () => {
+    const unassignedAppointments = appointments.filter(
+      apt => !apt.assignedStaff && (apt.status === 'pending' || apt.status === 'confirmed')
+    );
+
+    if (unassignedAppointments.length === 0) {
+      setAssignmentResult('没有待分配的预约');
+      setTimeout(() => setAssignmentResult(null), 3000);
+      return;
+    }
+
+    // 根据选择的策略分配
+    let assignedCount = 0;
+
+    switch (selectedStrategy) {
+      case 'balanced':
+        // 平均分配：均匀分配给所有员工
+        unassignedAppointments.forEach((apt, index) => {
+          apt.assignedStaff = staffMembers[index % staffMembers.length].id;
+          assignedCount++;
+        });
+        break;
+
+      case 'skill-based':
+        // 技能匹配：根据服务类型匹配员工
+        unassignedAppointments.forEach((apt) => {
+          // 简化示例：根据服务名称关键词匹配
+          if (apt.service.toLowerCase().includes('facial') || apt.service.toLowerCase().includes('skin')) {
+            apt.assignedStaff = 'staff_1'; // Sarah - 面部护理专家
+          } else if (apt.service.toLowerCase().includes('massage') || apt.service.toLowerCase().includes('body')) {
+            apt.assignedStaff = 'staff_3'; // Jessica - 按摩专家
+          } else {
+            apt.assignedStaff = 'staff_2'; // Amanda - 通用
+          }
+          assignedCount++;
+        });
+        break;
+
+      case 'availability':
+        // 按可用时间分配：优先分配给预约少的员工
+        const staffWorkload = staffMembers.map(staff => ({
+          id: staff.id,
+          count: appointments.filter(apt => apt.assignedStaff === staff.id).length
+        }));
+
+        unassignedAppointments.forEach((apt) => {
+          // 找到工作量最少的员工
+          staffWorkload.sort((a, b) => a.count - b.count);
+          apt.assignedStaff = staffWorkload[0].id;
+          staffWorkload[0].count++;
+          assignedCount++;
+        });
+        break;
+
+      case 'random':
+        // 随机分配
+        unassignedAppointments.forEach((apt) => {
+          const randomIndex = Math.floor(Math.random() * staffMembers.length);
+          apt.assignedStaff = staffMembers[randomIndex].id;
+          assignedCount++;
+        });
+        break;
+    }
+
+    setAssignmentResult(`成功分配 ${assignedCount} 个预约！`);
+    setShowAssignmentModal(false);
+    setTimeout(() => setAssignmentResult(null), 3000);
+  };
+
+  const unassignedCount = appointments.filter(
+    apt => !apt.assignedStaff && (apt.status === 'pending' || apt.status === 'confirmed')
+  ).length;
+
   return (
     <div className="min-h-screen bg-neutral-50">
       {/* Header */}
@@ -177,25 +256,138 @@ export default function ProviderAppointments() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filters */}
+        {/* Filters and Smart Assignment */}
         <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-4 mb-6">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-neutral-700">Filter:</span>
-            {(['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  filter === status
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                }`}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </button>
-            ))}
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-neutral-700">Filter:</span>
+              {(['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilter(status)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    filter === status
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Smart Assignment Button */}
+            <button
+              onClick={() => setShowAssignmentModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg"
+            >
+              <Zap className="w-4 h-4" />
+              智能分配
+              {unassignedCount > 0 && (
+                <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                  {unassignedCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Assignment Result Notification */}
+        {assignmentResult && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <p className="text-green-800 font-semibold">{assignmentResult}</p>
+          </div>
+        )}
+
+        {/* Assignment Modal */}
+        {showAssignmentModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-neutral-900 flex items-center gap-2">
+                  <Zap className="w-6 h-6 text-purple-600" />
+                  智能分配预约
+                </h2>
+                <button
+                  onClick={() => setShowAssignmentModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-neutral-600 mb-4">
+                  选择分配策略，系统将自动为未分配的预约分配合适的员工。
+                </p>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm font-semibold text-purple-900">
+                    待分配预约: <span className="text-purple-600">{unassignedCount}</span> 个
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-6">
+                <label className="text-sm font-semibold text-neutral-700 block mb-2">
+                  分配策略:
+                </label>
+
+                {[
+                  { value: 'balanced', label: '均衡分配', desc: '均匀分配给所有员工，确保工作量平衡' },
+                  { value: 'skill-based', label: '技能匹配', desc: '根据服务类型匹配最合适的员工' },
+                  { value: 'availability', label: '负载优先', desc: '优先分配给当前预约较少的员工' },
+                  { value: 'random', label: '随机分配', desc: '随机分配给可用员工' },
+                ].map((strategy) => (
+                  <button
+                    key={strategy.value}
+                    onClick={() => setSelectedStrategy(strategy.value as AssignmentStrategy)}
+                    className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                      selectedStrategy === strategy.value
+                        ? 'border-purple-600 bg-purple-50'
+                        : 'border-neutral-200 bg-white hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                        selectedStrategy === strategy.value
+                          ? 'border-purple-600 bg-purple-600'
+                          : 'border-neutral-300'
+                      }`}>
+                        {selectedStrategy === strategy.value && (
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-neutral-900 mb-1">
+                          {strategy.label}
+                        </div>
+                        <div className="text-sm text-neutral-600">
+                          {strategy.desc}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowAssignmentModal(false)}
+                  className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSmartAssignment}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md"
+                >
+                  开始分配
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Appointments List */}
         <div className="space-y-4">
