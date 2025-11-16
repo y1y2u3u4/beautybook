@@ -302,85 +302,90 @@ export default function ProviderAppointments() {
 
         {/* Assignment Modal */}
         {showAssignmentModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-neutral-900 flex items-center gap-2">
-                  <Zap className="w-6 h-6 text-purple-600" />
-                  Smart Appointment Assignment
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full my-8 max-h-[90vh] flex flex-col">
+              {/* Header - Fixed */}
+              <div className="flex items-center justify-between p-6 border-b border-neutral-200 flex-shrink-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-neutral-900 flex items-center gap-2">
+                  <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 flex-shrink-0" />
+                  <span className="line-clamp-2">Smart Assignment</span>
                 </h2>
                 <button
                   onClick={() => setShowAssignmentModal(false)}
-                  className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors ml-2 flex-shrink-0"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="mb-6">
-                <p className="text-neutral-600 mb-4">
-                  Select an assignment strategy and the system will automatically assign unassigned appointments to appropriate staff members.
-                </p>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm font-semibold text-purple-900">
-                    Unassigned Appointments: <span className="text-purple-600">{unassignedCount}</span>
+              {/* Scrollable Content */}
+              <div className="overflow-y-auto flex-1 p-6">
+                <div className="mb-6">
+                  <p className="text-neutral-600 mb-4 text-sm sm:text-base">
+                    Select an assignment strategy and the system will automatically assign unassigned appointments to appropriate staff members.
                   </p>
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <p className="text-sm font-semibold text-purple-900">
+                      Unassigned Appointments: <span className="text-purple-600">{unassignedCount}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-neutral-700 block mb-2">
+                    Assignment Strategy:
+                  </label>
+
+                  {[
+                    { value: 'balanced', label: 'Balanced Distribution', desc: 'Evenly distribute across all staff to ensure balanced workload' },
+                    { value: 'skill-based', label: 'Skill Matching', desc: 'Match appointments to staff based on service type and expertise' },
+                    { value: 'availability', label: 'Workload Priority', desc: 'Prioritize staff members with fewer current appointments' },
+                    { value: 'random', label: 'Random Assignment', desc: 'Randomly assign to available staff members' },
+                  ].map((strategy) => (
+                    <button
+                      key={strategy.value}
+                      onClick={() => setSelectedStrategy(strategy.value as AssignmentStrategy)}
+                      className={`w-full text-left p-3 sm:p-4 rounded-lg border-2 transition-all ${
+                        selectedStrategy === strategy.value
+                          ? 'border-purple-600 bg-purple-50'
+                          : 'border-neutral-200 bg-white hover:border-purple-300'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                          selectedStrategy === strategy.value
+                            ? 'border-purple-600 bg-purple-600'
+                            : 'border-neutral-300'
+                        }`}>
+                          {selectedStrategy === strategy.value && (
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-neutral-900 mb-1 text-sm sm:text-base">
+                            {strategy.label}
+                          </div>
+                          <div className="text-xs sm:text-sm text-neutral-600">
+                            {strategy.desc}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="space-y-3 mb-6">
-                <label className="text-sm font-semibold text-neutral-700 block mb-2">
-                  Assignment Strategy:
-                </label>
-
-                {[
-                  { value: 'balanced', label: 'Balanced Distribution', desc: 'Evenly distribute across all staff to ensure balanced workload' },
-                  { value: 'skill-based', label: 'Skill Matching', desc: 'Match appointments to staff based on service type and expertise' },
-                  { value: 'availability', label: 'Workload Priority', desc: 'Prioritize staff members with fewer current appointments' },
-                  { value: 'random', label: 'Random Assignment', desc: 'Randomly assign to available staff members' },
-                ].map((strategy) => (
-                  <button
-                    key={strategy.value}
-                    onClick={() => setSelectedStrategy(strategy.value as AssignmentStrategy)}
-                    className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                      selectedStrategy === strategy.value
-                        ? 'border-purple-600 bg-purple-50'
-                        : 'border-neutral-200 bg-white hover:border-purple-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                        selectedStrategy === strategy.value
-                          ? 'border-purple-600 bg-purple-600'
-                          : 'border-neutral-300'
-                      }`}>
-                        {selectedStrategy === strategy.value && (
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-neutral-900 mb-1">
-                          {strategy.label}
-                        </div>
-                        <div className="text-sm text-neutral-600">
-                          {strategy.desc}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-3">
+              {/* Footer Buttons - Fixed */}
+              <div className="flex gap-3 p-6 border-t border-neutral-200 flex-shrink-0">
                 <button
                   onClick={() => setShowAssignmentModal(false)}
-                  className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                  className="flex-1 px-4 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors min-h-[44px]"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSmartAssignment}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md min-h-[44px]"
                 >
                   Start Assignment
                 </button>
