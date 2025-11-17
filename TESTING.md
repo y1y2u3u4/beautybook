@@ -190,3 +190,4 @@ This document outlines testing procedures for newly implemented features:
 
 - **TESTING.md**: This file - comprehensive feature testing documentation
 - **SEO.md**: Complete SEO implementation guide and best practices
+- **BACKLINK_STRATEGY.md**: Comprehensive backlink building and directory submission strategy
