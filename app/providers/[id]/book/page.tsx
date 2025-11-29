@@ -2,14 +2,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Calendar, Clock, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { mockProviders, mockServices } from '@/lib/mock-data';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 
 const DAYS_TO_SHOW = 14;
 
 export default function BookingPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const provider = mockProviders.find(p => p.id === params.id);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -302,6 +304,12 @@ export default function BookingPage({ params }: { params: { id: string } }) {
 
               <button
                 disabled={!canProceed}
+                onClick={() => {
+                  if (canProceed) {
+                    const dateStr = selectedDate.toISOString().split('T')[0];
+                    router.push(`/providers/${params.id}/book/checkout?service=${selectedService}&date=${dateStr}&time=${encodeURIComponent(selectedTime!)}`);
+                  }
+                }}
                 className={`w-full mt-6 ${
                   canProceed
                     ? 'btn-primary'
