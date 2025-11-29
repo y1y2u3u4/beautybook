@@ -11,16 +11,23 @@ async function setupDatabase() {
   console.log('🚀 BeautyBook Database Setup (Direct Connection)\n');
 
   // Use direct database host, not pooler
+  // All credentials should be loaded from environment variables
   const client = new Client({
-    host: 'db.jsyxfclzeiyjalxcwkep.supabase.co',
-    port: 5432,
-    database: 'postgres',
-    user: 'postgres.jsyxfclzeiyjalxcwkep',
-    password: '531MQFYrbLwqBmTH',
-    ssl: {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'postgres',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD,
+    ssl: process.env.DB_SSL === 'true' ? {
       rejectUnauthorized: false,
-    },
+    } : undefined,
   });
+
+  if (!process.env.DB_PASSWORD) {
+    console.error('❌ Error: DB_PASSWORD environment variable is required');
+    console.log('   Please set DB_PASSWORD in your .env.local file');
+    process.exit(1);
+  }
 
   try {
     console.log('📡 Connecting to PostgreSQL...');
