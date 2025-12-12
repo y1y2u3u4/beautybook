@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, Users, DollarSign, Star, Clock, TrendingUp, Loader2, AlertCircle } from 'lucide-react';
+import { Calendar, Users, DollarSign, Star, Clock, TrendingUp, Loader2, AlertCircle, Sparkles, ArrowRight, X } from 'lucide-react';
 import { useAuth, SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
 
 interface DashboardStats {
@@ -37,6 +37,20 @@ export default function ProviderDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<string>('');
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+
+  useEffect(() => {
+    // Check if this is a new user (first visit)
+    const hasSeenWelcome = localStorage.getItem('providerHasSeenWelcome');
+    if (!hasSeenWelcome) {
+      setShowWelcomeBanner(true);
+    }
+  }, []);
+
+  const dismissWelcomeBanner = () => {
+    localStorage.setItem('providerHasSeenWelcome', 'true');
+    setShowWelcomeBanner(false);
+  };
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
@@ -235,6 +249,53 @@ export default function ProviderDashboardPage() {
             Here&apos;s what&apos;s happening with your business today
           </p>
         </div>
+
+        {/* Welcome Banner */}
+        {showWelcomeBanner && (
+          <div className="mb-6 relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-8 text-white">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute inset-0" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+              }}></div>
+            </div>
+            {/* Gradient Orbs */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-violet-500/20 rounded-full blur-3xl"></div>
+
+            <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-violet-500 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-8 h-8" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">
+                    Welcome to BeautyBook Pro{user?.firstName ? `, ${user.firstName}` : ''}!
+                  </h2>
+                  <p className="text-slate-300 max-w-lg">
+                    Complete your setup to start accepting bookings and grow your beauty business.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 flex-shrink-0">
+                <Link
+                  href="/provider/welcome"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Get Started
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <button
+                  onClick={dismissWelcomeBanner}
+                  className="p-2 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Data Source Badge */}
         {dataSource === 'mock' && (
