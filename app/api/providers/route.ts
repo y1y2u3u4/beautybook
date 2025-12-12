@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import type { ProviderFilters } from '@/lib/db/types';
+import { prisma } from '@/lib/prisma';
+import { mockProviders, mockServices } from '@/lib/mock-db';
+
+// Check if database is available
+async function isDatabaseAvailable(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
 
     // Parse filters from query parameters
-    const filters: ProviderFilters = {
+    const filters = {
       city: searchParams.get('city') || undefined,
       state: searchParams.get('state') || undefined,
       specialties: searchParams.get('specialties')?.split(',').filter(Boolean) || undefined,
@@ -15,78 +25,122 @@ export async function GET(request: NextRequest) {
       minPrice: searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined,
       maxPrice: searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined,
       verified: searchParams.get('verified') === 'true' ? true : undefined,
-      insurance: searchParams.get('insurance')?.split(',').filter(Boolean) || undefined,
       search: searchParams.get('search') || undefined,
     };
 
-    // Build query
-    let query = supabase
-      .from('provider_profiles')
-      .select(`
-        *,
-        user:users!provider_profiles_user_id_fkey(*)
-      `);
+    // Try database first, fallback to mock data
+    const dbAvailable = await isDatabaseAvailable();
 
-    // Apply filters
+    if (dbAvailable) {
+      // Use Prisma to query real database
+      const whereClause: any = {};
+
+      if (filters.city) {
+        whereClause.city = filters.city;
+      }
+      if (filters.state) {
+        whereClause.state = filters.state;
+      }
+      if (filters.minRating) {
+        whereClause.averageRating = { gte: filters.minRating };
+      }
+      if (filters.verified !== undefined) {
+        whereClause.verified = filters.verified;
+      }
+      if (filters.minPrice) {
+        whereClause.priceMin = { gte: filters.minPrice };
+      }
+      if (filters.maxPrice) {
+        whereClause.priceMax = { lte: filters.maxPrice };
+      }
+      if (filters.specialties && filters.specialties.length > 0) {
+        whereClause.specialties = { hasSome: filters.specialties };
+      }
+      if (filters.search) {
+        whereClause.OR = [
+          { businessName: { contains: filters.search, mode: 'insensitive' } },
+          { title: { contains: filters.search, mode: 'insensitive' } },
+          { bio: { contains: filters.search, mode: 'insensitive' } },
+        ];
+      }
+
+      const providers = await prisma.providerProfile.findMany({
+        where: whereClause,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              imageUrl: true,
+            },
+          },
+          services: {
+            where: { active: true },
+            take: 5,
+          },
+        },
+        orderBy: [
+          { averageRating: 'desc' },
+          { reviewCount: 'desc' },
+        ],
+      });
+
+      return NextResponse.json({ providers, source: 'database' });
+    }
+
+    // Fallback to mock data
+    console.log('[API] Using mock data - database unavailable');
+
+    let providers = [...mockProviders];
+
+    // Apply filters to mock data
     if (filters.city) {
-      query = query.eq('city', filters.city);
+      providers = providers.filter(p => p.city.toLowerCase() === filters.city!.toLowerCase());
     }
-
     if (filters.state) {
-      query = query.eq('state', filters.state);
+      providers = providers.filter(p => p.state.toLowerCase() === filters.state!.toLowerCase());
     }
-
     if (filters.minRating) {
-      query = query.gte('average_rating', filters.minRating);
+      providers = providers.filter(p => p.averageRating >= filters.minRating!);
     }
-
-    if (filters.minPrice) {
-      query = query.gte('price_min', filters.minPrice);
-    }
-
-    if (filters.maxPrice) {
-      query = query.lte('price_max', filters.maxPrice);
-    }
-
     if (filters.verified !== undefined) {
-      query = query.eq('verified', filters.verified);
+      providers = providers.filter(p => p.verified === filters.verified);
     }
-
-    // Handle array filters (specialties, insurance)
+    if (filters.minPrice) {
+      providers = providers.filter(p => p.priceMin >= filters.minPrice!);
+    }
+    if (filters.maxPrice) {
+      providers = providers.filter(p => p.priceMax <= filters.maxPrice!);
+    }
     if (filters.specialties && filters.specialties.length > 0) {
-      query = query.overlaps('specialties', filters.specialties);
+      providers = providers.filter(p =>
+        filters.specialties!.some(s => p.specialties.includes(s))
+      );
     }
-
-    if (filters.insurance && filters.insurance.length > 0) {
-      query = query.overlaps('insurance_accepted', filters.insurance);
-    }
-
-    // Text search (business name, title, bio)
     if (filters.search) {
-      query = query.or(
-        `business_name.ilike.%${filters.search}%,title.ilike.%${filters.search}%,bio.ilike.%${filters.search}%`
+      const searchLower = filters.search.toLowerCase();
+      providers = providers.filter(p =>
+        p.businessName.toLowerCase().includes(searchLower) ||
+        p.title.toLowerCase().includes(searchLower) ||
+        p.bio.toLowerCase().includes(searchLower)
       );
     }
 
-    // Order by rating and review count
-    query = query.order('average_rating', { ascending: false });
-    query = query.order('review_count', { ascending: false });
+    // Sort by rating
+    providers.sort((a, b) => b.averageRating - a.averageRating);
 
-    const { data, error } = await query;
+    // Add services to each provider
+    const providersWithServices = providers.map(p => ({
+      ...p,
+      services: mockServices.filter(s => s.providerId === p.id && s.active).slice(0, 5),
+    }));
 
-    if (error) {
-      console.error('Supabase error:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch providers' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ providers: data || [] });
-  } catch (error) {
-    console.error('API error:', error);
+    return NextResponse.json({ providers: providersWithServices, source: 'mock' });
+  } catch (error: any) {
+    console.error('[API] Failed to fetch providers:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error.message || 'Failed to fetch providers' },
       { status: 500 }
     );
   }
