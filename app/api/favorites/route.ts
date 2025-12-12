@@ -2,6 +2,83 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
+// Check if database is available
+async function isDatabaseAvailable(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Mock favorites data for demo mode
+const mockFavorites = [
+  {
+    id: 'mock_fav_1',
+    providerId: 'mock_provider_1',
+    createdAt: new Date().toISOString(),
+    provider: {
+      id: 'mock_provider_1',
+      businessName: 'Glow Beauty Studio',
+      title: 'Premium Skincare & Facial Treatments',
+      address: '123 Beauty Lane',
+      city: 'Los Angeles',
+      state: 'CA',
+      averageRating: 4.9,
+      reviewCount: 128,
+      priceMin: 75,
+      priceMax: 300,
+      specialties: ['Facials', 'Skincare', 'Anti-Aging'],
+      user: {
+        imageUrl: null,
+      },
+    },
+  },
+  {
+    id: 'mock_fav_2',
+    providerId: 'mock_provider_2',
+    createdAt: new Date().toISOString(),
+    provider: {
+      id: 'mock_provider_2',
+      businessName: 'Luxe Hair Salon',
+      title: 'Expert Hair Styling & Color',
+      address: '456 Style Avenue',
+      city: 'Los Angeles',
+      state: 'CA',
+      averageRating: 4.8,
+      reviewCount: 95,
+      priceMin: 50,
+      priceMax: 250,
+      specialties: ['Hair Styling', 'Color', 'Extensions'],
+      user: {
+        imageUrl: null,
+      },
+    },
+  },
+  {
+    id: 'mock_fav_3',
+    providerId: 'mock_provider_3',
+    createdAt: new Date().toISOString(),
+    provider: {
+      id: 'mock_provider_3',
+      businessName: 'Serenity Spa',
+      title: 'Full Body Wellness & Massage',
+      address: '789 Wellness Blvd',
+      city: 'Los Angeles',
+      state: 'CA',
+      averageRating: 4.7,
+      reviewCount: 72,
+      priceMin: 80,
+      priceMax: 200,
+      specialties: ['Massage', 'Body Treatments', 'Aromatherapy'],
+      user: {
+        imageUrl: null,
+      },
+    },
+  },
+];
+
 /**
  * GET /api/favorites
  * Get user's favorite providers
@@ -17,15 +94,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const dbAvailable = await isDatabaseAvailable();
+
+    if (!dbAvailable) {
+      return NextResponse.json({
+        favorites: mockFavorites,
+        source: 'mock',
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUserId },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        favorites: [],
+        source: 'database',
+      });
     }
 
     const favorites = await prisma.favorite.findMany({
@@ -64,7 +150,10 @@ export async function GET(request: NextRequest) {
       provider: providerMap.get(favorite.providerId) || null,
     }));
 
-    return NextResponse.json({ favorites: favoritesWithProviders });
+    return NextResponse.json({
+      favorites: favoritesWithProviders,
+      source: 'database',
+    });
   } catch (error: any) {
     console.error('[API] Failed to get favorites:', error);
     return NextResponse.json(
