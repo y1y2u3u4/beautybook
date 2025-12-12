@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { createNotification } from '@/lib/notifications/scheduler';
+import { mockAppointments, mockProviders, mockServices } from '@/lib/mock-db';
+
+// Check if database is available
+async function isDatabaseAvailable(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * GET /api/appointments
@@ -18,94 +29,158 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { clerkId: clerkUserId },
-    });
+    const dbAvailable = await isDatabaseAvailable();
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const role = searchParams.get('role') || 'customer'; // 'customer' or 'provider'
-
-    // Build where clause based on role
-    let whereClause: any = {};
-
-    if (role === 'provider') {
-      // Get provider profile
-      const providerProfile = await prisma.providerProfile.findUnique({
-        where: { userId: user.id },
+    if (dbAvailable) {
+      // Get user from database
+      const user = await prisma.user.findUnique({
+        where: { clerkId: clerkUserId },
       });
 
-      if (!providerProfile) {
+      if (!user) {
         return NextResponse.json(
-          { error: 'Provider profile not found' },
+          { error: 'User not found' },
           { status: 404 }
         );
       }
 
-      whereClause.providerId = providerProfile.id;
-    } else {
-      whereClause.customerId = user.id;
-    }
+      const { searchParams } = new URL(request.url);
+      const status = searchParams.get('status');
+      const role = searchParams.get('role') || 'customer'; // 'customer' or 'provider'
 
-    if (status) {
-      whereClause.status = status;
-    }
+      // Build where clause based on role
+      let whereClause: any = {};
 
-    const appointments = await prisma.appointment.findMany({
-      where: whereClause,
-      include: {
-        customer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            imageUrl: true,
+      if (role === 'provider') {
+        // Get provider profile
+        const providerProfile = await prisma.providerProfile.findUnique({
+          where: { userId: user.id },
+        });
+
+        if (!providerProfile) {
+          return NextResponse.json(
+            { error: 'Provider profile not found' },
+            { status: 404 }
+          );
+        }
+
+        whereClause.providerId = providerProfile.id;
+      } else {
+        whereClause.customerId = user.id;
+      }
+
+      if (status) {
+        whereClause.status = status;
+      }
+
+      const appointments = await prisma.appointment.findMany({
+        where: whereClause,
+        include: {
+          customer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              imageUrl: true,
+            },
           },
-        },
-        provider: {
-          select: {
-            id: true,
-            businessName: true,
-            address: true,
-            city: true,
-            state: true,
-            phone: true,
+          provider: {
+            select: {
+              id: true,
+              businessName: true,
+              address: true,
+              city: true,
+              state: true,
+              zipCode: true,
+              phone: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
           },
-        },
-        service: {
-          select: {
-            id: true,
-            name: true,
-            duration: true,
-            price: true,
-            category: true,
+          service: {
+            select: {
+              id: true,
+              name: true,
+              duration: true,
+              price: true,
+              category: true,
+            },
           },
-        },
-        staffMember: {
-          select: {
-            id: true,
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
+          staffMember: {
+            select: {
+              id: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { date: 'desc' },
+        orderBy: { date: 'desc' },
+      });
+
+      // Transform appointments to include startTime/endTime as ISO strings
+      const transformedAppointments = appointments.map(apt => ({
+        ...apt,
+        startTime: new Date(`${apt.date.toISOString().split('T')[0]}T${apt.startTime}:00`).toISOString(),
+        endTime: new Date(`${apt.date.toISOString().split('T')[0]}T${apt.endTime}:00`).toISOString(),
+        totalPrice: apt.amount,
+      }));
+
+      return NextResponse.json({ appointments: transformedAppointments, source: 'database' });
+    }
+
+    // Fallback to mock data
+    console.log('[API] Using mock data for appointments - database unavailable');
+
+    // Return mock appointments with enriched data
+    const enrichedAppointments = mockAppointments.map(apt => {
+      const provider = mockProviders.find(p => p.id === apt.providerId);
+      const service = mockServices.find(s => s.id === apt.serviceId);
+
+      // Convert date and time to ISO string format
+      const dateStr = apt.date.toISOString().split('T')[0];
+      const startTimeISO = new Date(`${dateStr}T${apt.startTime}:00`).toISOString();
+      const endTimeISO = new Date(`${dateStr}T${apt.endTime}:00`).toISOString();
+
+      return {
+        id: apt.id,
+        status: apt.status,
+        startTime: startTimeISO,
+        endTime: endTimeISO,
+        notes: null,
+        totalPrice: service?.price || apt.amount || 0,
+        createdAt: new Date().toISOString(),
+        provider: provider ? {
+          id: provider.id,
+          businessName: provider.businessName,
+          address: provider.address,
+          city: provider.city,
+          state: provider.state,
+          zipCode: provider.zipCode,
+          phone: provider.phone,
+          user: {
+            firstName: provider.businessName.split(' ')[0],
+            lastName: provider.businessName.split(' ').slice(1).join(' '),
+          },
+        } : null,
+        service: service ? {
+          id: service.id,
+          name: service.name,
+          duration: service.duration,
+          price: service.price,
+        } : null,
+      };
     });
 
-    return NextResponse.json({ appointments });
+    return NextResponse.json({ appointments: enrichedAppointments, source: 'mock' });
   } catch (error: any) {
     console.error('[API] Failed to get appointments:', error);
     return NextResponse.json(

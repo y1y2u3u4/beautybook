@@ -1,24 +1,164 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Calendar, Clock, ChevronLeft, ChevronRight, Check } from 'lucide-react';
-import { mockProviders, mockServices } from '@/lib/mock-data';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { Calendar, Clock, ChevronLeft, ChevronRight, Check, Loader2, AlertCircle } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
+import { useAuth } from '@clerk/nextjs';
+
+interface Service {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  duration: number;
+  category: string;
+}
+
+interface Provider {
+  id: string;
+  businessName: string;
+  title: string;
+  city: string;
+  state: string;
+  user?: {
+    imageUrl?: string;
+  };
+  services?: Service[];
+}
+
+interface TimeSlot {
+  time: string;
+  available: boolean;
+}
 
 const DAYS_TO_SHOW = 14;
 
 export default function BookingPage({ params }: { params: { id: string } }) {
-  const provider = mockProviders.find(p => p.id === params.id);
+  const router = useRouter();
+  const { isSignedIn, isLoaded } = useAuth();
+
+  const [provider, setProvider] = useState<Provider | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(0);
 
-  if (!provider) {
-    return <div>Provider not found</div>;
-  }
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  const [booking, setBooking] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  // Fetch provider data
+  useEffect(() => {
+    fetchProviderData();
+  }, [params.id]);
+
+  // Fetch availability when date or service changes
+  useEffect(() => {
+    if (selectedService && selectedDate) {
+      fetchAvailability();
+    }
+  }, [selectedDate, selectedService]);
+
+  const fetchProviderData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/providers/${params.id}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch provider');
+      }
+
+      setProvider(data.provider);
+      setServices(data.provider?.services || []);
+    } catch (err: any) {
+      console.error('Failed to fetch provider:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAvailability = async () => {
+    try {
+      setLoadingSlots(true);
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      const response = await fetch(
+        `/api/availability?providerId=${params.id}&date=${dateStr}&serviceId=${selectedService}`
+      );
+      const data = await response.json();
+
+      if (response.ok && data.slots) {
+        setTimeSlots(data.slots);
+      } else {
+        setTimeSlots([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch availability:', err);
+      setTimeSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleBookAppointment = async () => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      router.push('/sign-in');
+      return;
+    }
+
+    if (!canProceed) return;
+
+    try {
+      setBooking(true);
+      setBookingError(null);
+
+      // First sync user to database
+      await fetch('/api/users/sync', { method: 'POST' });
+
+      // Create appointment
+      const response = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          providerId: params.id,
+          serviceId: selectedService,
+          date: selectedDate.toISOString().split('T')[0],
+          startTime: selectedTime,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to book appointment');
+      }
+
+      setBookingSuccess(true);
+
+      // Redirect to confirmation after 2 seconds
+      setTimeout(() => {
+        router.push('/customer/appointments');
+      }, 2000);
+    } catch (err: any) {
+      console.error('Failed to book appointment:', err);
+      setBookingError(err.message);
+    } finally {
+      setBooking(false);
+    }
+  };
 
   // Generate dates
   const dates: Date[] = [];
@@ -32,18 +172,6 @@ export default function BookingPage({ params }: { params: { id: string } }) {
   }
 
   const visibleDates = dates.slice(currentWeekStart, currentWeekStart + 7);
-
-  // Generate time slots (9 AM - 6 PM, 30 min intervals)
-  const timeSlots: string[] = [];
-  for (let hour = 9; hour <= 18; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      if (hour === 18 && minute > 0) break;
-      const period = hour >= 12 ? 'PM' : 'AM';
-      const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-      const timeString = `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
-      timeSlots.push(timeString);
-    }
-  }
 
   const handlePrevWeek = () => {
     if (currentWeekStart > 0) {
@@ -62,10 +190,61 @@ export default function BookingPage({ params }: { params: { id: string } }) {
   };
 
   const selectedServiceData = selectedService
-    ? mockServices.find(s => s.id === selectedService)
+    ? services.find(s => s.id === selectedService)
     : null;
 
   const canProceed = selectedService && selectedDate && selectedTime;
+
+  // Convert 24h time to 12h format for display
+  const formatTimeSlot = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+        <span className="ml-3 text-neutral-600">Loading booking page...</span>
+      </div>
+    );
+  }
+
+  if (error || !provider) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Provider Not Found</h2>
+          <p className="text-neutral-600 mb-4">{error}</p>
+          <Link href="/providers" className="btn-primary">
+            Back to Providers
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (bookingSuccess) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check className="w-8 h-8 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Booking Confirmed!</h2>
+          <p className="text-neutral-600 mb-4">
+            Your appointment has been scheduled successfully.
+          </p>
+          <p className="text-sm text-neutral-500">Redirecting to your appointments...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const avatarUrl = provider.user?.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider.businessName}`;
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -98,17 +277,17 @@ export default function BookingPage({ params }: { params: { id: string } }) {
               <div className="flex items-center gap-4">
                 <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-neutral-100">
                   <Image
-                    src={provider.avatar}
-                    alt={provider.name}
+                    src={avatarUrl}
+                    alt={provider.businessName}
                     fill
                     className="object-cover"
                   />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-neutral-900">{provider.name}</h2>
+                  <h2 className="text-xl font-bold text-neutral-900">{provider.businessName}</h2>
                   <p className="text-neutral-600">{provider.title}</p>
                   <p className="text-sm text-neutral-500 mt-1">
-                    {provider.location.city}, {provider.location.state}
+                    {provider.city}, {provider.state}
                   </p>
                 </div>
               </div>
@@ -123,34 +302,41 @@ export default function BookingPage({ params }: { params: { id: string } }) {
                 <h3 className="text-xl font-bold text-neutral-900">Select Service</h3>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                {mockServices.map((service) => (
-                  <button
-                    key={service.id}
-                    onClick={() => setSelectedService(service.id)}
-                    className={`relative border-2 rounded-xl p-4 text-left transition-all ${
-                      selectedService === service.id
-                        ? 'border-primary-600 bg-primary-50'
-                        : 'border-neutral-200 hover:border-primary-300'
-                    }`}
-                  >
-                    {selectedService === service.id && (
-                      <div className="absolute top-3 right-3 w-6 h-6 bg-primary-600 text-white rounded-full flex items-center justify-center">
-                        <Check className="w-4 h-4" />
+              {services.length === 0 ? (
+                <p className="text-neutral-500 text-center py-8">No services available</p>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {services.map((service) => (
+                    <button
+                      key={service.id}
+                      onClick={() => {
+                        setSelectedService(service.id);
+                        setSelectedTime(null);
+                      }}
+                      className={`relative border-2 rounded-xl p-4 text-left transition-all ${
+                        selectedService === service.id
+                          ? 'border-primary-600 bg-primary-50'
+                          : 'border-neutral-200 hover:border-primary-300'
+                      }`}
+                    >
+                      {selectedService === service.id && (
+                        <div className="absolute top-3 right-3 w-6 h-6 bg-primary-600 text-white rounded-full flex items-center justify-center">
+                          <Check className="w-4 h-4" />
+                        </div>
+                      )}
+                      <h4 className="font-semibold text-neutral-900 mb-1">{service.name}</h4>
+                      <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{service.description}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-neutral-500">
+                          <Clock className="w-4 h-4" />
+                          <span>{service.duration} min</span>
+                        </div>
+                        <span className="font-semibold text-primary-600">{formatCurrency(service.price)}</span>
                       </div>
-                    )}
-                    <h4 className="font-semibold text-neutral-900 mb-1">{service.name}</h4>
-                    <p className="text-sm text-neutral-600 mb-3">{service.description}</p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-neutral-500">
-                        <Clock className="w-4 h-4" />
-                        <span>{service.duration} min</span>
-                      </div>
-                      <span className="font-semibold text-primary-600">{formatCurrency(service.price)}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Step 2: Select Date */}
@@ -189,7 +375,10 @@ export default function BookingPage({ params }: { params: { id: string } }) {
                   return (
                     <button
                       key={date.toISOString()}
-                      onClick={() => setSelectedDate(date)}
+                      onClick={() => {
+                        setSelectedDate(date);
+                        setSelectedTime(null);
+                      }}
                       disabled={!selectedService}
                       className={`p-3 rounded-xl text-center transition-all ${
                         isSelected
@@ -225,29 +414,41 @@ export default function BookingPage({ params }: { params: { id: string } }) {
                 <h3 className="text-xl font-bold text-neutral-900">Select Time</h3>
               </div>
 
-              <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
-                {timeSlots.map((time) => {
-                  const isSelected = selectedTime === time;
-                  const isAvailable = Math.random() > 0.3; // Mock availability
+              {loadingSlots ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
+                  <span className="ml-2 text-neutral-600">Loading available times...</span>
+                </div>
+              ) : timeSlots.length === 0 ? (
+                <p className="text-neutral-500 text-center py-8">
+                  {selectedService && selectedDate
+                    ? 'No available times for this date. Please select another date.'
+                    : 'Please select a service and date first'}
+                </p>
+              ) : (
+                <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
+                  {timeSlots.map((slot) => {
+                    const isSelected = selectedTime === slot.time;
 
-                  return (
-                    <button
-                      key={time}
-                      onClick={() => isAvailable && setSelectedTime(time)}
-                      disabled={!selectedService || !selectedDate || !isAvailable}
-                      className={`py-3 px-4 rounded-xl font-medium transition-all ${
-                        isSelected
-                          ? 'bg-primary-600 text-white'
-                          : isAvailable
-                          ? 'border border-neutral-200 hover:border-primary-300 text-neutral-700'
-                          : 'border border-neutral-100 text-neutral-300 cursor-not-allowed'
-                      } ${(!selectedService || !selectedDate) && 'opacity-50'}`}
-                    >
-                      {time}
-                    </button>
-                  );
-                })}
-              </div>
+                    return (
+                      <button
+                        key={slot.time}
+                        onClick={() => slot.available && setSelectedTime(slot.time)}
+                        disabled={!slot.available}
+                        className={`py-3 px-4 rounded-xl font-medium transition-all ${
+                          isSelected
+                            ? 'bg-primary-600 text-white'
+                            : slot.available
+                            ? 'border border-neutral-200 hover:border-primary-300 text-neutral-700'
+                            : 'border border-neutral-100 text-neutral-300 cursor-not-allowed line-through'
+                        }`}
+                      >
+                        {formatTimeSlot(slot.time)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -284,7 +485,7 @@ export default function BookingPage({ params }: { params: { id: string } }) {
                 {selectedTime && (
                   <div>
                     <p className="text-sm text-neutral-600 mb-1">Time</p>
-                    <p className="font-semibold text-neutral-900">{selectedTime}</p>
+                    <p className="font-semibold text-neutral-900">{formatTimeSlot(selectedTime)}</p>
                   </div>
                 )}
 
@@ -300,19 +501,37 @@ export default function BookingPage({ params }: { params: { id: string } }) {
                 )}
               </div>
 
+              {bookingError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                  {bookingError}
+                </div>
+              )}
+
               <button
-                disabled={!canProceed}
+                onClick={handleBookAppointment}
+                disabled={!canProceed || booking}
                 className={`w-full mt-6 ${
-                  canProceed
+                  canProceed && !booking
                     ? 'btn-primary'
                     : 'bg-neutral-200 text-neutral-400 px-6 py-3 rounded-xl font-medium cursor-not-allowed'
                 }`}
               >
-                Continue to Checkout
+                {booking ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Booking...
+                  </span>
+                ) : isSignedIn ? (
+                  'Confirm Booking'
+                ) : (
+                  'Sign In to Book'
+                )}
               </button>
 
               <p className="text-xs text-neutral-500 text-center mt-4">
-                You won&apos;t be charged until your appointment is confirmed
+                {isSignedIn
+                  ? "You won't be charged until your appointment is confirmed"
+                  : 'Please sign in to complete your booking'}
               </p>
             </div>
           </div>
