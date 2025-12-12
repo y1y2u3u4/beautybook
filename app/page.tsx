@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Search, Calendar, Star, Shield, MapPin, Clock, Sparkles, Heart, Award } from 'lucide-react';
+import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 
 export default function HomePage() {
   return (
@@ -20,20 +21,27 @@ export default function HomePage() {
               <Link href="/providers" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
                 Find Providers
               </Link>
-              <Link href="/test-mode" className="text-yellow-700 hover:text-yellow-800 font-semibold transition-colors flex items-center gap-1">
-                🧪 Test Mode
-              </Link>
               <Link href="/about" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
                 About
               </Link>
-              <Link href="/login" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
-                Sign In
-              </Link>
+              <SignedOut>
+                <Link href="/sign-in" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
+                  Sign In
+                </Link>
+              </SignedOut>
             </nav>
             <div className="flex items-center space-x-4">
-              <Link href="/register" className="btn-primary">
-                Get Started
-              </Link>
+              <SignedIn>
+                <Link href="/customer/appointments" className="text-neutral-700 hover:text-primary-600 font-medium transition-colors">
+                  My Appointments
+                </Link>
+                <UserButton afterSignOutUrl="/" />
+              </SignedIn>
+              <SignedOut>
+                <Link href="/sign-up" className="btn-primary">
+                  Get Started
+                </Link>
+              </SignedOut>
             </div>
           </div>
         </div>
