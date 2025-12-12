@@ -70,14 +70,14 @@ export async function GET(request: NextRequest) {
     await prisma.calendarSync.upsert({
       where: { providerId: user.providerProfile.id },
       create: {
-        providerId: user.providerProfile.id,
-        provider: 'GOOGLE',
+        provider: { connect: { id: user.providerProfile.id } },
+        provider_type: 'google',
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token || '',
         expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
         enabled: true,
         autoSync: true,
-        syncDirection: 'BOTH',
+        syncDirection: 'both',
       },
       update: {
         accessToken: tokens.access_token,

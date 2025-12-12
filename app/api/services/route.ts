@@ -1,23 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { mockServices } from '@/lib/mock-db';
+
+// Check if database is available
+async function isDatabaseAvailable(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * GET /api/services
- * Get services for a provider
+ * Get services for a provider or current user's provider
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const providerId = searchParams.get('providerId');
+    let providerId = searchParams.get('providerId');
     const category = searchParams.get('category');
     const active = searchParams.get('active');
+    const myServices = searchParams.get('my') === 'true';
+
+    const dbAvailable = await isDatabaseAvailable();
+
+    // If requesting own services, get provider ID from auth
+    if (myServices) {
+      const { userId: clerkUserId } = await auth();
+      if (!clerkUserId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      if (dbAvailable) {
+        const user = await prisma.user.findUnique({
+          where: { clerkId: clerkUserId },
+          include: { providerProfile: true },
+        });
+
+        if (user?.providerProfile) {
+          providerId = user.providerProfile.id;
+        } else {
+          // User is not a provider, return mock data
+          return NextResponse.json({ services: mockServices, source: 'mock' });
+        }
+      } else {
+        // Database unavailable, return mock
+        return NextResponse.json({ services: mockServices, source: 'mock' });
+      }
+    }
 
     if (!providerId) {
-      return NextResponse.json(
-        { error: 'providerId is required' },
-        { status: 400 }
-      );
+      // Return all mock services if no provider ID
+      return NextResponse.json({ services: mockServices, source: 'mock' });
+    }
+
+    if (!dbAvailable) {
+      // Filter mock services by provider if needed
+      const filtered = mockServices.filter(s => s.providerId === providerId);
+      return NextResponse.json({ services: filtered.length ? filtered : mockServices, source: 'mock' });
     }
 
     const whereClause: any = { providerId };
@@ -38,13 +81,11 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    return NextResponse.json({ services });
+    return NextResponse.json({ services, source: 'database' });
   } catch (error: any) {
     console.error('[API] Failed to get services:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to get services' },
-      { status: 500 }
-    );
+    // Return mock data on error
+    return NextResponse.json({ services: mockServices, source: 'mock' });
   }
 }
 

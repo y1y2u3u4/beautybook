@@ -77,17 +77,18 @@ export async function POST(request: NextRequest) {
         }
 
         // Try to find or create a customer
-        let customerId: string | null = null;
+        let customerId: string | undefined = undefined;
         if (event.customerEmail) {
           let customer = await prisma.user.findUnique({
             where: { email: event.customerEmail },
           });
 
           if (!customer && event.customerName) {
-            // Create a placeholder customer
+            // Create a placeholder customer with a generated clerkId
             const nameParts = event.customerName.split(' ');
             customer = await prisma.user.create({
               data: {
+                clerkId: `import_${Date.now()}_${Math.random().toString(36).slice(2)}`,
                 email: event.customerEmail,
                 firstName: nameParts[0] || 'Unknown',
                 lastName: nameParts.slice(1).join(' ') || 'Customer',
@@ -108,13 +109,27 @@ export async function POST(request: NextRequest) {
         const startTimeStr = startDateTime.toTimeString().slice(0, 5);
         const endTimeStr = endDateTime.toTimeString().slice(0, 5);
 
+        // Require either a customer or skip import
+        if (!customerId) {
+          results.errors.push(`Skipped "${event.title}": No customer associated`);
+          results.skipped++;
+          continue;
+        }
+
+        // Require a service to be assigned
+        if (!event.serviceId) {
+          results.errors.push(`Skipped "${event.title}": No service assigned`);
+          results.skipped++;
+          continue;
+        }
+
         // Create the appointment
         await prisma.appointment.create({
           data: {
             providerId: user.providerProfile.id,
             customerId: customerId,
-            serviceId: event.serviceId || null,
-            staffMemberId: event.staffMemberId || null,
+            serviceId: event.serviceId,
+            staffMemberId: event.staffMemberId || undefined,
             date: dateOnly,
             startTime: startTimeStr,
             endTime: endTimeStr,
@@ -124,7 +139,6 @@ export async function POST(request: NextRequest) {
             amount: 0, // Will be updated when service is assigned
             paymentStatus: 'PENDING',
             cancellationPolicy: 'STANDARD',
-            source: 'GOOGLE_CALENDAR',
           },
         });
 

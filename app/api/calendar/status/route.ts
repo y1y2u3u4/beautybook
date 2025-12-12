@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       configured,
       connected: calendarSync?.enabled || false,
       settings: calendarSync ? {
-        provider: calendarSync.provider,
+        provider: calendarSync.provider_type,
         autoSync: calendarSync.autoSync,
         syncDirection: calendarSync.syncDirection,
         lastSyncedAt: calendarSync.lastSyncedAt,
@@ -112,7 +112,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       success: true,
       settings: {
-        provider: updated.provider,
+        provider: updated.provider_type,
         autoSync: updated.autoSync,
         syncDirection: updated.syncDirection,
         lastSyncedAt: updated.lastSyncedAt,

@@ -118,6 +118,7 @@ model ProviderProfile {
   staffMembers    StaffMember[]
   products        Product[]
   campaigns       Campaign[]
+  calendarSync    CalendarSync?
 
   @@map("provider_profiles")
 }
@@ -285,6 +286,38 @@ model Availability {
   updatedAt   DateTime        @updatedAt
 
   @@map("availability")
+}
+
+// ==================== Calendar Sync ====================
+
+// Calendar Sync (Google Calendar Integration)
+model CalendarSync {
+  id            String          @id @default(cuid())
+  providerId    String          @unique
+  provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Provider type
+  provider_type String          @default("google") // google, outlook, etc.
+
+  // OAuth tokens
+  accessToken   String          @db.Text
+  refreshToken  String          @db.Text
+  expiresAt     DateTime?
+
+  // Sync settings
+  enabled       Boolean         @default(true)
+  autoSync      Boolean         @default(true)
+  syncDirection String          @default("both") // import, export, both
+
+  // Calendar info
+  calendarId    String?
+
+  // Timestamps
+  lastSyncedAt  DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("calendar_sync")
 }
 
 // ==================== Phase 1: Notification System ====================

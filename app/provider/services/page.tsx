@@ -64,10 +64,17 @@ export default function ProviderServicesPage() {
       // First sync user to ensure they exist in the database
       await fetch('/api/users/sync', { method: 'POST' });
 
-      // For now, use mock data since we need provider ID from the provider profile
-      // In production, this would fetch from /api/services?providerId=xxx
-      setServices(mockServices);
-      setDataSource('mock');
+      // Fetch services for current provider
+      const response = await fetch('/api/services?my=true');
+      const data = await response.json();
+
+      if (response.ok) {
+        setServices(data.services || []);
+        setDataSource(data.source || 'unknown');
+      } else {
+        setServices(mockServices);
+        setDataSource('mock');
+      }
     } catch (err: any) {
       console.error('Failed to fetch services:', err);
       setServices(mockServices);
