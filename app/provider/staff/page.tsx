@@ -93,9 +93,31 @@ export default function ProviderStaffPage() {
       // Sync user first
       await fetch('/api/users/sync', { method: 'POST' });
 
-      // For now use mock data - in production would fetch from API
-      setStaffMembers(mockStaff);
-      setDataSource('mock');
+      // Fetch staff from API
+      const response = await fetch('/api/staff');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch staff');
+      }
+
+      // Transform API data to page format
+      const staffList = (data.staff || data.staffMembers || []).map((s: any) => ({
+        id: s.id,
+        name: s.user ? `${s.user.firstName || ''} ${s.user.lastName || ''}`.trim() : 'Unknown',
+        email: s.user?.email || '',
+        phone: s.phone || '',
+        role: s.role || 'STYLIST',
+        hireDate: s.hireDate || s.createdAt || new Date().toISOString(),
+        active: s.active !== false,
+        commissionRate: s.commissionRate || s.commission,
+        salary: s.salary,
+        appointmentsThisMonth: s.appointmentsThisMonth || 0,
+        revenueThisMonth: s.revenueThisMonth || 0,
+      }));
+
+      setStaffMembers(staffList);
+      setDataSource(data.source || 'database');
     } catch (err: any) {
       console.error('Failed to fetch staff:', err);
       setStaffMembers(mockStaff);
@@ -115,21 +137,28 @@ export default function ProviderStaffPage() {
     setError(null);
 
     try {
-      // For demo, add locally
-      const newStaff: StaffMember = {
-        id: `temp_${Date.now()}`,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role,
-        hireDate: formData.hireDate,
-        active: formData.active,
-        commissionRate: formData.payType === 'commission' ? formData.commissionRate : undefined,
-        salary: formData.payType === 'salary' ? formData.salary : undefined,
-        appointmentsThisMonth: 0,
-        revenueThisMonth: 0,
-      };
-      setStaffMembers([...staffMembers, newStaff]);
+      const nameParts = formData.name.split(' ');
+      const response = await fetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: nameParts[0] || formData.name,
+          lastName: nameParts.slice(1).join(' ') || '',
+          email: formData.email,
+          role: formData.role,
+          commissionRate: formData.payType === 'commission' ? formData.commissionRate : 0,
+          salary: formData.payType === 'salary' ? formData.salary : 0,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to add staff member');
+      }
+
+      // Refresh staff list
+      await fetchStaff();
       setShowAddModal(false);
       resetForm();
     } catch (err: any) {
@@ -149,18 +178,25 @@ export default function ProviderStaffPage() {
     setError(null);
 
     try {
-      // Update locally for demo
-      setStaffMembers(staffMembers.map(s => s.id === selectedStaff.id ? {
-        ...s,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role,
-        hireDate: formData.hireDate,
-        active: formData.active,
-        commissionRate: formData.payType === 'commission' ? formData.commissionRate : undefined,
-        salary: formData.payType === 'salary' ? formData.salary : undefined,
-      } : s));
+      const response = await fetch(`/api/staff/${selectedStaff.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: formData.role,
+          active: formData.active,
+          commissionRate: formData.payType === 'commission' ? formData.commissionRate : 0,
+          salary: formData.payType === 'salary' ? formData.salary : 0,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update staff member');
+      }
+
+      // Refresh staff list
+      await fetchStaff();
       setShowEditModal(false);
       setSelectedStaff(null);
       resetForm();
@@ -178,8 +214,18 @@ export default function ProviderStaffPage() {
     setError(null);
 
     try {
-      // Delete locally for demo
-      setStaffMembers(staffMembers.filter(s => s.id !== selectedStaff.id));
+      const response = await fetch(`/api/staff/${selectedStaff.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete staff member');
+      }
+
+      // Refresh staff list
+      await fetchStaff();
       setShowDeleteModal(false);
       setSelectedStaff(null);
     } catch (err: any) {

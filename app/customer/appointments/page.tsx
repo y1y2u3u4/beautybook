@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Calendar, Clock, MapPin, User, DollarSign, Phone, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import ReviewModal from '@/components/ReviewModal';
 
 interface Appointment {
   id: string;
@@ -41,6 +42,10 @@ export default function CustomerAppointmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<string>('');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Review modal state
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewAppointment, setReviewAppointment] = useState<Appointment | null>(null);
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
@@ -80,8 +85,8 @@ export default function CustomerAppointmentsPage() {
     try {
       setCancellingId(appointmentId);
 
-      const response = await fetch(`/api/appointments/${appointmentId}`, {
-        method: 'DELETE',
+      const response = await fetch(`/api/appointments/${appointmentId}/cancel`, {
+        method: 'POST',
       });
 
       if (!response.ok) {
@@ -97,6 +102,16 @@ export default function CustomerAppointmentsPage() {
     } finally {
       setCancellingId(null);
     }
+  };
+
+  const handleOpenReview = (appointment: Appointment) => {
+    setReviewAppointment(appointment);
+    setReviewModalOpen(true);
+  };
+
+  const handleReviewSuccess = () => {
+    // Could refresh appointments or show a success message
+    alert('Thank you for your review!');
   };
 
   const formatDate = (dateString: string) => {
@@ -426,7 +441,10 @@ export default function CustomerAppointmentsPage() {
 
                           {appointment.status.toLowerCase() === 'completed' && (
                             <div className="mt-4 flex gap-2">
-                              <button className="bg-primary-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors">
+                              <button
+                                onClick={() => handleOpenReview(appointment)}
+                                className="bg-primary-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                              >
                                 Leave a Review
                               </button>
                               {appointment.provider && (
@@ -449,6 +467,21 @@ export default function CustomerAppointmentsPage() {
           )}
         </SignedIn>
       </div>
+
+      {/* Review Modal */}
+      {reviewAppointment?.provider && (
+        <ReviewModal
+          isOpen={reviewModalOpen}
+          onClose={() => {
+            setReviewModalOpen(false);
+            setReviewAppointment(null);
+          }}
+          providerId={reviewAppointment.provider.id}
+          providerName={reviewAppointment.provider.businessName}
+          appointmentId={reviewAppointment.id}
+          onSuccess={handleReviewSuccess}
+        />
+      )}
     </div>
   );
 }
