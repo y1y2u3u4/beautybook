@@ -20,6 +20,11 @@ import {
   Star,
   Shield,
   Zap,
+  RefreshCw,
+  UserPlus,
+  Sparkles,
+  Import,
+  CalendarSync,
 } from 'lucide-react';
 
 const setupSteps = [
@@ -51,9 +56,58 @@ const setupSteps = [
     id: 4,
     icon: Users,
     title: 'Manage Your Team',
-    description: 'Add staff members and assign services',
+    description: 'Add staff members and assign roles',
     href: '/provider/staff',
     color: 'from-emerald-500 to-teal-500',
+  },
+  {
+    id: 5,
+    icon: Calendar,
+    title: 'Sync Google Calendar',
+    description: 'Import existing appointments and stay organized',
+    href: '/provider/calendar-sync',
+    color: 'from-red-500 to-rose-500',
+  },
+  {
+    id: 6,
+    icon: Zap,
+    title: 'Smart Assignment',
+    description: 'Auto-assign appointments to available staff',
+    href: '/provider/appointments',
+    color: 'from-indigo-500 to-purple-500',
+  },
+];
+
+const proFeatures = [
+  {
+    icon: Calendar,
+    badge: 'Google Calendar',
+    title: 'Seamless Calendar Integration',
+    description: 'Connect your Google Calendar to automatically sync appointments. Import existing bookings, prevent double-booking, and keep everything in one place.',
+    features: [
+      'Two-way sync with Google Calendar',
+      'Import existing appointments',
+      'Automatic conflict detection',
+      'Real-time updates across platforms',
+    ],
+    href: '/provider/calendar-sync',
+    gradient: 'from-red-500 to-orange-500',
+    bgGradient: 'from-red-50 to-orange-50',
+  },
+  {
+    icon: Zap,
+    badge: 'AI-Powered',
+    title: 'Smart Staff Assignment',
+    description: 'Let our intelligent system automatically assign appointments to your team members based on availability, skills, and workload balance.',
+    features: [
+      'Balanced workload distribution',
+      'Skill-based matching',
+      'Availability-first scheduling',
+      'One-click bulk assignment',
+    ],
+    href: '/provider/appointments',
+    gradient: 'from-violet-500 to-purple-500',
+    bgGradient: 'from-violet-50 to-purple-50',
   },
 ];
 
@@ -120,6 +174,7 @@ export default function ProviderWelcome() {
   const router = useRouter();
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [hoveredStep, setHoveredStep] = useState<number | null>(null);
+  const [activeFeature, setActiveFeature] = useState(0);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -136,9 +191,11 @@ export default function ProviderWelcome() {
   }, []);
 
   const markStepComplete = (stepId: number) => {
-    const newCompleted = [...completedSteps, stepId];
-    setCompletedSteps(newCompleted);
-    localStorage.setItem('providerOnboardingProgress', JSON.stringify(newCompleted));
+    if (!completedSteps.includes(stepId)) {
+      const newCompleted = [...completedSteps, stepId];
+      setCompletedSteps(newCompleted);
+      localStorage.setItem('providerOnboardingProgress', JSON.stringify(newCompleted));
+    }
   };
 
   const progressPercentage = (completedSteps.length / setupSteps.length) * 100;
@@ -184,7 +241,7 @@ export default function ProviderWelcome() {
           </div>
 
           {/* Welcome Content */}
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-12 items-start">
             <div>
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/10 mb-6">
                 <Zap className="w-4 h-4 text-amber-400" />
@@ -223,14 +280,14 @@ export default function ProviderWelcome() {
             </div>
 
             {/* Progress Card */}
-            <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/10">
-              <div className="flex items-center justify-between mb-6">
+            <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/10">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-white">Setup Progress</h3>
                 <span className="text-sm text-white/70">{completedSteps.length}/{setupSteps.length} complete</span>
               </div>
 
               {/* Progress Bar */}
-              <div className="h-2 bg-white/20 rounded-full overflow-hidden mb-8">
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden mb-6">
                 <div
                   className="h-full bg-gradient-to-r from-primary-500 via-violet-500 to-pink-500 rounded-full transition-all duration-500"
                   style={{ width: `${progressPercentage}%` }}
@@ -238,7 +295,7 @@ export default function ProviderWelcome() {
               </div>
 
               {/* Steps */}
-              <div className="space-y-4">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {setupSteps.map((step) => {
                   const Icon = step.icon;
                   const isComplete = completedSteps.includes(step.id);
@@ -248,28 +305,28 @@ export default function ProviderWelcome() {
                     <Link
                       key={step.id}
                       href={step.href}
-                      className={`flex items-center gap-4 p-4 rounded-xl transition-all duration-300 ${
+                      className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-300 ${
                         isComplete
                           ? 'bg-emerald-500/20 border border-emerald-500/30'
                           : 'bg-white/5 border border-white/10 hover:bg-white/10'
                       }`}
                       onMouseEnter={() => setHoveredStep(step.id)}
                       onMouseLeave={() => setHoveredStep(null)}
-                      onClick={() => !isComplete && markStepComplete(step.id)}
+                      onClick={() => markStepComplete(step.id)}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${step.color}`}>
-                        <Icon className="w-5 h-5 text-white" />
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center bg-gradient-to-br ${step.color} flex-shrink-0`}>
+                        <Icon className="w-4 h-4 text-white" />
                       </div>
-                      <div className="flex-1">
-                        <h4 className={`font-semibold ${isComplete ? 'text-emerald-400' : 'text-white'}`}>
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-medium text-sm ${isComplete ? 'text-emerald-400' : 'text-white'}`}>
                           {step.title}
                         </h4>
-                        <p className="text-sm text-slate-400">{step.description}</p>
+                        <p className="text-xs text-slate-400 truncate">{step.description}</p>
                       </div>
                       {isComplete ? (
-                        <CheckCircle className="w-5 h-5 text-emerald-400" />
+                        <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       ) : (
-                        <ChevronRight className={`w-5 h-5 text-white/50 transition-transform ${isHovered ? 'translate-x-1' : ''}`} />
+                        <ChevronRight className={`w-4 h-4 text-white/50 flex-shrink-0 transition-transform ${isHovered ? 'translate-x-1' : ''}`} />
                       )}
                     </Link>
                   );
@@ -280,8 +337,86 @@ export default function ProviderWelcome() {
         </div>
       </div>
 
+      {/* Pro Features Section - Google Calendar & Smart Assignment */}
+      <div className="py-20 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-100 to-purple-100 rounded-full mb-4">
+              <Sparkles className="w-4 h-4 text-violet-600" />
+              <span className="text-sm font-semibold text-violet-700">Pro Features</span>
+            </div>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">
+              Powerful Tools for Busy Professionals
+            </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto">
+              Save hours every week with our smart automation features
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-8">
+            {proFeatures.map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={feature.title}
+                  className={`relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br ${feature.bgGradient} p-8 hover:shadow-xl transition-all duration-300`}
+                >
+                  {/* Background decoration */}
+                  <div className={`absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br ${feature.gradient} opacity-10 rounded-full blur-3xl`}></div>
+
+                  <div className="relative">
+                    {/* Badge */}
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-sm mb-6">
+                      <Icon className={`w-4 h-4 bg-gradient-to-r ${feature.gradient} bg-clip-text`} style={{ color: index === 0 ? '#ef4444' : '#8b5cf6' }} />
+                      <span className="text-sm font-semibold text-slate-700">{feature.badge}</span>
+                    </div>
+
+                    <h3 className="text-2xl font-bold text-slate-900 mb-3">
+                      {feature.title}
+                    </h3>
+                    <p className="text-slate-600 mb-6">
+                      {feature.description}
+                    </p>
+
+                    {/* Feature list */}
+                    <ul className="space-y-3 mb-8">
+                      {feature.features.map((item) => (
+                        <li key={item} className="flex items-center gap-3 text-sm text-slate-700">
+                          <div className={`w-5 h-5 rounded-full bg-gradient-to-r ${feature.gradient} flex items-center justify-center flex-shrink-0`}>
+                            <CheckCircle className="w-3 h-3 text-white" />
+                          </div>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Link
+                      href={feature.href}
+                      className={`inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r ${feature.gradient} text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5`}
+                    >
+                      {index === 0 ? (
+                        <>
+                          <RefreshCw className="w-4 h-4" />
+                          Connect Calendar
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4" />
+                          Try Smart Assignment
+                        </>
+                      )}
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Benefits Section */}
-      <div className="py-20">
+      <div className="py-20 bg-slate-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-slate-900 mb-4">
@@ -393,15 +528,42 @@ export default function ProviderWelcome() {
           <p className="text-white/80 mb-8 max-w-xl mx-auto">
             Complete your profile setup and start accepting bookings today.
           </p>
-          <Link
-            href="/provider/profile"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary-700 font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
-          >
-            Complete Setup
-            <ArrowRight className="w-5 h-5" />
-          </Link>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link
+              href="/provider/profile"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary-700 font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+            >
+              Complete Setup
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link
+              href="/provider/calendar-sync"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white/10 text-white font-semibold rounded-2xl border border-white/20 hover:bg-white/20 transition-all duration-300"
+            >
+              <Calendar className="w-5 h-5" />
+              Connect Google Calendar
+            </Link>
+          </div>
         </div>
       </div>
+
+      {/* Custom Scrollbar Styles */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.5);
+        }
+      `}</style>
     </div>
   );
 }
