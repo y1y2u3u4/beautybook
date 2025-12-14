@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Calendar, RefreshCw, CheckCircle, AlertCircle, ExternalLink, Settings, Download, Loader2, Users } from 'lucide-react';
@@ -30,7 +30,7 @@ interface CalendarSettings {
   enabled: boolean;
 }
 
-export default function ProviderCalendarSyncPage() {
+function ProviderCalendarSyncContent() {
   const { isSignedIn, isLoaded } = useAuth();
   const searchParams = useSearchParams();
 
@@ -684,5 +684,20 @@ export default function ProviderCalendarSyncPage() {
         </SignedOut>
       </div>
     </div>
+  );
+}
+
+export default function ProviderCalendarSyncPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+          <span className="ml-3 text-neutral-600">Loading calendar...</span>
+        </div>
+      }
+    >
+      <ProviderCalendarSyncContent />
+    </Suspense>
   );
 }

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CreditCard, Lock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { CreditCard, Lock, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 
-export default function DemoCheckoutPage() {
+function DemoCheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const appointmentId = searchParams.get('appointmentId');
@@ -186,5 +186,19 @@ export default function DemoCheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DemoCheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+        </div>
+      }
+    >
+      <DemoCheckoutContent />
+    </Suspense>
   );
 }

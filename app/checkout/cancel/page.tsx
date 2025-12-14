@@ -1,10 +1,11 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { XCircle, ArrowLeft, HelpCircle } from 'lucide-react';
+import { XCircle, ArrowLeft, HelpCircle, Loader2 } from 'lucide-react';
 
-export default function CheckoutCancelPage() {
+function CheckoutCancelContent() {
   const searchParams = useSearchParams();
   const appointmentId = searchParams.get('appointment_id');
 
@@ -75,5 +76,19 @@ export default function CheckoutCancelPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutCancelPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+        </div>
+      }
+    >
+      <CheckoutCancelContent />
+    </Suspense>
   );
 }
