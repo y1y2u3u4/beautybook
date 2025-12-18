@@ -11,14 +11,14 @@ datasource db {
 // User Model (synced with Clerk)
 model User {
   id            String   @id @default(cuid())
-  clerkId       String   @unique
+  clerkId       String   @unique @map("clerk_id")
   email         String   @unique
-  firstName     String?
-  lastName      String?
-  imageUrl      String?
+  firstName     String?  @map("first_name")
+  lastName      String?  @map("last_name")
+  imageUrl      String?  @map("image_url")
   role          UserRole @default(CUSTOMER)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   // Relations
   customerProfile CustomerProfile?
@@ -43,21 +43,21 @@ enum UserRole {
 // Customer Profile
 model CustomerProfile {
   id            String   @id @default(cuid())
-  userId        String   @unique
+  userId        String   @unique @map("user_id")
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   phone         String?
-  dateOfBirth   DateTime?
+  dateOfBirth   DateTime? @map("date_of_birth")
   address       String?
   city          String?
   state         String?
-  zipCode       String?
+  zipCode       String?  @map("zip_code")
 
   // Medical History
-  medicalHistory Json?
+  medicalHistory Json?   @map("medical_history")
   allergies      String[]
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("customer_profiles")
 }
@@ -65,11 +65,11 @@ model CustomerProfile {
 // Provider Profile
 model ProviderProfile {
   id              String   @id @default(cuid())
-  userId          String   @unique
+  userId          String   @unique @map("user_id")
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Basic Info
-  businessName    String
+  businessName    String   @map("business_name")
   title           String
   bio             String   @db.Text
   phone           String
@@ -79,7 +79,7 @@ model ProviderProfile {
   address         String
   city            String
   state           String
-  zipCode         String
+  zipCode         String   @map("zip_code")
   latitude        Float?
   longitude       Float?
 
@@ -89,21 +89,21 @@ model ProviderProfile {
   specialties     String[]
 
   // Pricing
-  priceMin        Float
-  priceMax        Float
+  priceMin        Float    @map("price_min")
+  priceMax        Float    @map("price_max")
 
   // Insurance
-  insuranceAccepted String[]
+  insuranceAccepted String[] @map("insurance_accepted")
 
   // Ratings
-  averageRating   Float    @default(0)
-  reviewCount     Int      @default(0)
+  averageRating   Float    @default(0) @map("average_rating")
+  reviewCount     Int      @default(0) @map("review_count")
 
   // Business Hours
-  businessHours   Json?
+  businessHours   Json?    @map("business_hours")
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   // Relations
   education       Education[]
@@ -126,12 +126,12 @@ model ProviderProfile {
 // Education
 model Education {
   id           String          @id @default(cuid())
-  providerId   String
+  providerId   String          @map("provider_id")
   provider     ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
   degree       String
   institution  String
   year         Int
-  createdAt    DateTime        @default(now())
+  createdAt    DateTime        @default(now()) @map("created_at")
 
   @@map("education")
 }
@@ -139,13 +139,13 @@ model Education {
 // Certification
 model Certification {
   id           String          @id @default(cuid())
-  providerId   String
+  providerId   String          @map("provider_id")
   provider     ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
   name         String
   issuer       String
   year         Int
-  expiryDate   DateTime?
-  createdAt    DateTime        @default(now())
+  expiryDate   DateTime?       @map("expiry_date")
+  createdAt    DateTime        @default(now()) @map("created_at")
 
   @@map("certifications")
 }
@@ -153,7 +153,7 @@ model Certification {
 // Service
 model Service {
   id          String          @id @default(cuid())
-  providerId  String
+  providerId  String          @map("provider_id")
   provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
   name        String
   description String          @db.Text
@@ -161,8 +161,8 @@ model Service {
   price       Float
   category    String
   active      Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   // Relations
   appointments Appointment[]
@@ -175,49 +175,49 @@ model Appointment {
   id          String            @id @default(cuid())
 
   // Relations
-  customerId  String
+  customerId  String            @map("customer_id")
   customer    User              @relation(fields: [customerId], references: [id])
-  providerId  String
+  providerId  String            @map("provider_id")
   provider    ProviderProfile   @relation(fields: [providerId], references: [id])
-  serviceId   String
+  serviceId   String            @map("service_id")
   service     Service           @relation(fields: [serviceId], references: [id])
 
   // Appointment Details
   date        DateTime
-  startTime   String
-  endTime     String
+  startTime   String            @map("start_time")
+  endTime     String            @map("end_time")
   status      AppointmentStatus @default(SCHEDULED)
   notes       String?           @db.Text
 
   // Payment
   amount      Float
-  paymentStatus PaymentStatus   @default(PENDING)
-  paymentId   String?
+  paymentStatus PaymentStatus   @default(PENDING) @map("payment_status")
+  paymentId   String?           @map("payment_id")
 
   // Cancellation Policy & Deposit
-  cancellationPolicy  CancellationPolicy @default(STANDARD)
-  depositRequired     Boolean            @default(false)
-  depositAmount       Float?
-  depositPaid         Boolean            @default(false)
-  depositPaymentId    String?
+  cancellationPolicy  CancellationPolicy @default(STANDARD) @map("cancellation_policy")
+  depositRequired     Boolean            @default(false) @map("deposit_required")
+  depositAmount       Float?             @map("deposit_amount")
+  depositPaid         Boolean            @default(false) @map("deposit_paid")
+  depositPaymentId    String?            @map("deposit_payment_id")
 
   // Cancellation Details
-  cancelledAt         DateTime?
-  cancelledBy         String? // userId
-  cancellationReason  String?
-  cancellationFee     Float?
-  cancellationFeePaid Boolean            @default(false)
+  cancelledAt         DateTime?          @map("cancelled_at")
+  cancelledBy         String?            @map("cancelled_by") // userId
+  cancellationReason  String?            @map("cancellation_reason")
+  cancellationFee     Float?             @map("cancellation_fee")
+  cancellationFeePaid Boolean            @default(false) @map("cancellation_fee_paid")
 
   // Calendar Integration
-  googleEventId String?
+  googleEventId String?                  @map("google_event_id")
 
   // Staff Assignment
-  staffMemberId String?
+  staffMemberId String?                  @map("staff_member_id")
   staffMember   StaffMember? @relation(fields: [staffMemberId], references: [id])
 
   // Timestamps
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
 
   // Relations
   notifications Notification[]
@@ -243,9 +243,9 @@ enum PaymentStatus {
 // Review
 model Review {
   id          String          @id @default(cuid())
-  customerId  String
+  customerId  String          @map("customer_id")
   customer    User            @relation(fields: [customerId], references: [id])
-  providerId  String
+  providerId  String          @map("provider_id")
   provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   rating      Int             // 1-5
@@ -253,8 +253,8 @@ model Review {
   verified    Boolean         @default(false)
   helpful     Int             @default(0)
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   @@map("reviews")
 }
@@ -262,10 +262,10 @@ model Review {
 // Favorite (Save providers)
 model Favorite {
   id          String   @id @default(cuid())
-  userId      String
+  userId      String   @map("user_id")
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  providerId  String
-  createdAt   DateTime @default(now())
+  providerId  String   @map("provider_id")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@unique([userId, providerId])
   @@map("favorites")
@@ -274,16 +274,16 @@ model Favorite {
 // Availability (Provider's available time slots)
 model Availability {
   id          String          @id @default(cuid())
-  providerId  String
+  providerId  String          @map("provider_id")
   provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
-  dayOfWeek   Int             // 0-6 (Sunday-Saturday)
-  startTime   String
-  endTime     String
+  dayOfWeek   Int             @map("day_of_week") // 0-6 (Sunday-Saturday)
+  startTime   String          @map("start_time")
+  endTime     String          @map("end_time")
   active      Boolean         @default(true)
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   @@map("availability")
 }
@@ -293,29 +293,29 @@ model Availability {
 // Calendar Sync (Google Calendar Integration)
 model CalendarSync {
   id            String          @id @default(cuid())
-  providerId    String          @unique
+  providerId    String          @unique @map("provider_id")
   provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   // Provider type
   provider_type String          @default("google") // google, outlook, etc.
 
   // OAuth tokens
-  accessToken   String          @db.Text
-  refreshToken  String          @db.Text
-  expiresAt     DateTime?
+  accessToken   String          @db.Text @map("access_token")
+  refreshToken  String          @db.Text @map("refresh_token")
+  expiresAt     DateTime?       @map("expires_at")
 
   // Sync settings
   enabled       Boolean         @default(true)
-  autoSync      Boolean         @default(true)
-  syncDirection String          @default("both") // import, export, both
+  autoSync      Boolean         @default(true) @map("auto_sync")
+  syncDirection String          @default("both") @map("sync_direction") // import, export, both
 
   // Calendar info
-  calendarId    String?
+  calendarId    String?         @map("calendar_id")
 
   // Timestamps
-  lastSyncedAt  DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  lastSyncedAt  DateTime?       @map("last_synced_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
 
   @@map("calendar_sync")
 }
@@ -325,25 +325,25 @@ model CalendarSync {
 // Notification Preferences
 model NotificationPreference {
   id           String   @id @default(cuid())
-  userId       String   @unique
+  userId       String   @unique @map("user_id")
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Channel Settings
-  emailEnabled Boolean  @default(true)
-  smsEnabled   Boolean  @default(true)
-  pushEnabled  Boolean  @default(true)
+  emailEnabled Boolean  @default(true) @map("email_enabled")
+  smsEnabled   Boolean  @default(true) @map("sms_enabled")
+  pushEnabled  Boolean  @default(true) @map("push_enabled")
 
   // Reminder Timing
-  reminderBefore24h Boolean @default(true)
-  reminderBefore2h  Boolean @default(true)
-  reminderBefore30m Boolean @default(false)
+  reminderBefore24h Boolean @default(true) @map("reminder_before_24h")
+  reminderBefore2h  Boolean @default(true) @map("reminder_before_2h")
+  reminderBefore30m Boolean @default(false) @map("reminder_before_30m")
 
   // Marketing
-  marketingEnabled  Boolean @default(false)
-  birthdayReminders Boolean @default(true)
+  marketingEnabled  Boolean @default(false) @map("marketing_enabled")
+  birthdayReminders Boolean @default(true) @map("birthday_reminders")
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("notification_preferences")
 }
@@ -351,9 +351,9 @@ model NotificationPreference {
 // Notification
 model Notification {
   id            String             @id @default(cuid())
-  userId        String
+  userId        String             @map("user_id")
   user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  appointmentId String?
+  appointmentId String?            @map("appointment_id")
   appointment   Appointment?       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   type          NotificationType
@@ -366,14 +366,14 @@ model Notification {
   data          Json?             // Additional data
 
   // Scheduling
-  scheduledFor  DateTime
-  sentAt        DateTime?
+  scheduledFor  DateTime          @map("scheduled_for")
+  sentAt        DateTime?         @map("sent_at")
 
   // Delivery tracking
-  deliveryId    String?           // Twilio/SendGrid ID
+  deliveryId    String?           @map("delivery_id") // Twilio/SendGrid ID
   error         String?
 
-  createdAt     DateTime          @default(now())
+  createdAt     DateTime          @default(now()) @map("created_at")
 
   @@index([userId, status])
   @@index([scheduledFor])
@@ -417,19 +417,19 @@ enum CancellationPolicy {
 // Cancellation Rules
 model CancellationRule {
   id              String          @id @default(cuid())
-  providerId      String
+  providerId      String          @map("provider_id")
   provider        ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   policy          CancellationPolicy @default(STANDARD)
-  hoursBeforeAppt Int             // Hours before appointment
-  feePercentage   Float           // 0-100
-  feeFixed        Float?          // Optional fixed fee
+  hoursBeforeAppt Int             @map("hours_before_appt") // Hours before appointment
+  feePercentage   Float           @map("fee_percentage") // 0-100
+  feeFixed        Float?          @map("fee_fixed") // Optional fixed fee
 
-  applyToNewClients Boolean       @default(true)
+  applyToNewClients Boolean       @default(true) @map("apply_to_new_clients")
   active          Boolean         @default(true)
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
 
   @@map("cancellation_rules")
 }
@@ -439,17 +439,17 @@ model CancellationRule {
 // Portfolio
 model Portfolio {
   id          String          @id @default(cuid())
-  providerId  String
+  providerId  String          @map("provider_id")
   provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   title       String
   description String?         @db.Text
   category    String          // "Hair", "Makeup", "Nails", etc.
   featured    Boolean         @default(false)
-  viewCount   Int             @default(0)
+  viewCount   Int             @default(0) @map("view_count")
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   images      PortfolioImage[]
 
@@ -460,7 +460,7 @@ model Portfolio {
 // Portfolio Images
 model PortfolioImage {
   id          String    @id @default(cuid())
-  portfolioId String
+  portfolioId String    @map("portfolio_id")
   portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
   url         String
@@ -469,10 +469,10 @@ model PortfolioImage {
   caption     String?
 
   // AI Analysis (future)
-  aiTags      String[]
-  aiQualityScore Float?
+  aiTags      String[]  @map("ai_tags")
+  aiQualityScore Float? @map("ai_quality_score")
 
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   @@index([portfolioId, order])
   @@map("portfolio_images")
@@ -481,19 +481,19 @@ model PortfolioImage {
 // Before & After Photos
 model BeforeAfterPhoto {
   id          String          @id @default(cuid())
-  providerId  String
+  providerId  String          @map("provider_id")
   provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
-  beforeImage String
-  afterImage  String
-  serviceType String
+  beforeImage String          @map("before_image")
+  afterImage  String          @map("after_image")
+  serviceType String          @map("service_type")
   description String?         @db.Text
   verified    Boolean         @default(false)
 
   likes       Int             @default(0)
-  viewCount   Int             @default(0)
+  viewCount   Int             @default(0) @map("view_count")
 
-  createdAt   DateTime        @default(now())
+  createdAt   DateTime        @default(now()) @map("created_at")
 
   @@index([providerId, verified])
   @@map("before_after_photos")
@@ -504,10 +504,10 @@ model BeforeAfterPhoto {
 // Staff Member
 model StaffMember {
   id          String          @id @default(cuid())
-  providerId  String
+  providerId  String          @map("provider_id")
   provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
-  userId      String          @unique
+  userId      String          @unique @map("user_id")
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   role        StaffRole
@@ -516,15 +516,15 @@ model StaffMember {
 
   // Employment
   active      Boolean         @default(true)
-  hireDate    DateTime
-  terminationDate DateTime?
+  hireDate    DateTime        @map("hire_date")
+  terminationDate DateTime?   @map("termination_date")
 
   // Commission
-  commissionRate Float?        // Percentage
+  commissionRate Float?       @map("commission_rate") // Percentage
   salary      Float?
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   appointments Appointment[]
 
@@ -547,7 +547,7 @@ enum StaffRole {
 // Product
 model Product {
   id          String          @id @default(cuid())
-  providerId  String
+  providerId  String          @map("provider_id")
   provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   name        String
@@ -557,24 +557,24 @@ model Product {
 
   // Inventory
   quantity    Int             @default(0)
-  lowStockThreshold Int       @default(10)
+  lowStockThreshold Int       @default(10) @map("low_stock_threshold")
   unit        String          @default("unit") // unit, oz, ml, etc.
 
   // Pricing
-  costPrice   Float
-  sellPrice   Float?
+  costPrice   Float           @map("cost_price")
+  sellPrice   Float?          @map("sell_price")
 
   // Category
   category    String
   brand       String?
 
   // Retail
-  availableForSale Boolean    @default(false)
+  availableForSale Boolean    @default(false) @map("available_for_sale")
 
   active      Boolean         @default(true)
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   transactions InventoryTransaction[]
 
@@ -585,24 +585,24 @@ model Product {
 // Inventory Transaction
 model InventoryTransaction {
   id          String          @id @default(cuid())
-  productId   String
+  productId   String          @map("product_id")
   product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   type        TransactionType
   quantity    Int             // Positive for IN, negative for OUT
 
   // Cost tracking
-  unitCost    Float?
-  totalCost   Float?
+  unitCost    Float?          @map("unit_cost")
+  totalCost   Float?          @map("total_cost")
 
   // Reference
-  referenceType String?       // "purchase", "sale", "adjustment", "waste"
-  referenceId String?         // Order ID, Appointment ID, etc.
+  referenceType String?       @map("reference_type") // "purchase", "sale", "adjustment", "waste"
+  referenceId String?         @map("reference_id") // Order ID, Appointment ID, etc.
 
   notes       String?
-  performedBy String?         // userId
+  performedBy String?         @map("performed_by") // userId
 
-  createdAt   DateTime        @default(now())
+  createdAt   DateTime        @default(now()) @map("created_at")
 
   @@index([productId, createdAt])
   @@map("inventory_transactions")
@@ -621,9 +621,9 @@ enum TransactionType {
 // Marketing Campaign
 model Campaign {
   id          String          @id @default(cuid())
-  providerId  String?
+  providerId  String?         @map("provider_id")
   provider    ProviderProfile? @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  createdBy   String
+  createdBy   String          @map("created_by")
   creator     User            @relation(fields: [createdBy], references: [id])
 
   name        String
@@ -631,26 +631,26 @@ model Campaign {
   status      CampaignStatus  @default(DRAFT)
 
   // Targeting
-  targetAudience Json          // Filters for recipients
+  targetAudience Json         @map("target_audience") // Filters for recipients
 
   // Content
   subject     String?
   message     String          @db.Text
-  templateId  String?
+  templateId  String?         @map("template_id")
   template    EmailTemplate?  @relation(fields: [templateId], references: [id])
 
   // Scheduling
-  scheduledFor DateTime?
-  sentAt      DateTime?
+  scheduledFor DateTime?      @map("scheduled_for")
+  sentAt      DateTime?       @map("sent_at")
 
   // Analytics
-  recipientCount Int           @default(0)
-  sentCount   Int             @default(0)
-  openCount   Int             @default(0)
-  clickCount  Int             @default(0)
+  recipientCount Int          @default(0) @map("recipient_count")
+  sentCount   Int             @default(0) @map("sent_count")
+  openCount   Int             @default(0) @map("open_count")
+  clickCount  Int             @default(0) @map("click_count")
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   @@index([providerId, status])
   @@map("campaigns")
@@ -676,8 +676,8 @@ model EmailTemplate {
   id          String   @id @default(cuid())
   name        String
   subject     String
-  htmlContent String   @db.Text
-  textContent String?  @db.Text
+  htmlContent String   @db.Text @map("html_content")
+  textContent String?  @db.Text @map("text_content")
 
   // Variables
   variables   String[] // ["firstName", "appointmentDate", etc.]
@@ -686,11 +686,11 @@ model EmailTemplate {
   category    TemplateCategory
 
   // Usage
-  isDefault   Boolean  @default(false)
+  isDefault   Boolean  @default(false) @map("is_default")
   active      Boolean  @default(true)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   campaigns   Campaign[]
 

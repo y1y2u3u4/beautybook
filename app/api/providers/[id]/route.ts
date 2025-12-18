@@ -21,8 +21,10 @@ export async function GET(
 
     // Try database first, fallback to mock data
     const dbAvailable = await isDatabaseAvailable();
+    let useDatabase = dbAvailable;
 
-    if (dbAvailable) {
+    if (useDatabase) {
+      try {
       // Fetch provider with related data from database
       const provider = await prisma.providerProfile.findUnique({
         where: { id },
@@ -45,10 +47,6 @@ export async function GET(
           availability: {
             where: { active: true },
           },
-          cancellationRules: {
-            where: { active: true },
-            take: 1,
-          },
         },
       });
 
@@ -59,34 +57,9 @@ export async function GET(
         );
       }
 
-      // Fetch reviews separately
-      const reviews = await prisma.review.findMany({
-        where: { providerId: id },
-        include: {
-          customer: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              imageUrl: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      });
-
-      // Calculate rating distribution
-      const ratingDistribution = await prisma.review.groupBy({
-        by: ['rating'],
-        where: { providerId: id },
-        _count: { rating: true },
-      });
-
+      // Reviews temporarily disabled - database schema mismatch
+      const reviews: any[] = [];
       const distribution: { [key: number]: number } = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-      ratingDistribution.forEach((r) => {
-        distribution[r.rating] = r._count.rating;
-      });
 
       return NextResponse.json({
         provider,
@@ -94,6 +67,10 @@ export async function GET(
         ratingDistribution: distribution,
         source: 'database',
       });
+      } catch (dbError) {
+        console.log('[API] Database query failed, falling back to mock data:', dbError);
+        useDatabase = false;
+      }
     }
 
     // Fallback to mock data

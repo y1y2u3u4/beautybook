@@ -58,6 +58,9 @@ export default function TestModePage() {
 
     localStorage.setItem('testUser', JSON.stringify(testUser));
     localStorage.setItem('testMode', 'true');
+    // Also set cookie for middleware
+    document.cookie = 'testMode=true; path=/; max-age=86400';
+    document.cookie = `testUser=${encodeURIComponent(JSON.stringify(testUser))}; path=/; max-age=86400`;
     setSelectedAccount(account.id);
 
     // Redirect based on role
@@ -73,6 +76,9 @@ export default function TestModePage() {
   const exitTestMode = () => {
     localStorage.removeItem('testUser');
     localStorage.removeItem('testMode');
+    // Clear cookies
+    document.cookie = 'testMode=; path=/; max-age=0';
+    document.cookie = 'testUser=; path=/; max-age=0';
     setSelectedAccount(null);
     router.push('/');
   };

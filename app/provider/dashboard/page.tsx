@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Calendar, Users, DollarSign, Star, Clock, TrendingUp, Loader2, AlertCircle, Sparkles, ArrowRight, X } from 'lucide-react';
-import { useAuth, SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
+import { UserButton } from '@clerk/nextjs';
+import { useTestAuth } from '@/hooks/useTestAuth';
+import { TestSignedIn, TestSignedOut } from '@/components/TestAuthWrapper';
 
 interface DashboardStats {
   totalAppointments: number;
@@ -30,8 +32,7 @@ interface Appointment {
 }
 
 export default function ProviderDashboardPage() {
-  const { isSignedIn, isLoaded } = useAuth();
-  const { user } = useUser();
+  const { isSignedIn, isLoaded, user, isTestMode } = useTestAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,14 +227,23 @@ export default function ProviderDashboardPage() {
               </Link>
             </nav>
             <div className="flex items-center gap-4">
-              <SignedIn>
-                <UserButton afterSignOutUrl="/" />
-              </SignedIn>
-              <SignedOut>
+              <TestSignedIn>
+                {isTestMode ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                      {user?.firstName?.charAt(0) || 'T'}
+                    </div>
+                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Test Mode</span>
+                  </div>
+                ) : (
+                  <UserButton afterSignOutUrl="/" />
+                )}
+              </TestSignedIn>
+              <TestSignedOut>
                 <Link href="/sign-in" className="btn-primary px-6 py-2">
                   Sign In
                 </Link>
-              </SignedOut>
+              </TestSignedOut>
             </div>
           </div>
         </div>
@@ -311,7 +321,7 @@ export default function ProviderDashboardPage() {
         )}
 
         {/* Sign In Required */}
-        <SignedOut>
+        <TestSignedOut>
           <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-12 text-center">
             <div className="text-neutral-400 mb-4">
               <Users className="w-16 h-16 mx-auto" />
@@ -329,9 +339,9 @@ export default function ProviderDashboardPage() {
               Sign In
             </Link>
           </div>
-        </SignedOut>
+        </TestSignedOut>
 
-        <SignedIn>
+        <TestSignedIn>
           {/* Error State */}
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
@@ -530,7 +540,7 @@ export default function ProviderDashboardPage() {
               </div>
             )}
           </div>
-        </SignedIn>
+        </TestSignedIn>
       </div>
     </div>
   );

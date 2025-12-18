@@ -5,23 +5,17 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...');
 
-  // Clean existing data
+  // Clean existing data (only tables that exist)
   console.log('🧹 Cleaning existing data...');
-  await prisma.notification.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.review.deleteMany();
   await prisma.favorite.deleteMany();
   await prisma.service.deleteMany();
   await prisma.availability.deleteMany();
-  await prisma.staffMember.deleteMany();
-  await prisma.cancellationRule.deleteMany();
   await prisma.education.deleteMany();
   await prisma.certification.deleteMany();
-  await prisma.portfolio.deleteMany();
-  await prisma.product.deleteMany();
   await prisma.customerProfile.deleteMany();
   await prisma.providerProfile.deleteMany();
-  await prisma.notificationPreference.deleteMany();
   await prisma.user.deleteMany();
 
   // Create test users
@@ -550,16 +544,6 @@ async function main() {
       { providerId: provider1.id, name: 'Bridal Makeup Specialist', issuer: 'Bobbi Brown', year: 2018 },
       { providerId: provider2.id, name: 'Balayage Master', issuer: 'Wella Professionals', year: 2019 },
       { providerId: provider3.id, name: 'Gel Nail Art Certification', issuer: 'OPI Academy', year: 2021 },
-    ],
-  });
-
-  // Create cancellation rules
-  console.log('📋 Creating cancellation rules...');
-  await prisma.cancellationRule.createMany({
-    data: [
-      { providerId: provider1.id, policy: 'STANDARD', hoursBeforeAppt: 24, feePercentage: 50, active: true },
-      { providerId: provider2.id, policy: 'MODERATE', hoursBeforeAppt: 12, feePercentage: 25, active: true },
-      { providerId: provider3.id, policy: 'FLEXIBLE', hoursBeforeAppt: 2, feePercentage: 0, active: true },
     ],
   });
 

@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Clock, DollarSign, Edit, Trash2, Plus, X, Loader2, AlertCircle } from 'lucide-react';
-import { useAuth, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import { UserButton } from '@clerk/nextjs';
+import { useTestAuth } from '@/hooks/useTestAuth';
+import { TestSignedIn, TestSignedOut } from '@/components/TestAuthWrapper';
 
 interface Service {
   id: string;
@@ -26,7 +28,7 @@ const mockServices: Service[] = [
 const CATEGORIES = ['Facial', 'Skin Treatment', 'Massage', 'Hair Cutting', 'Hair Coloring', 'Hair Styling', 'Nails', 'Makeup', 'Other'];
 
 export default function ProviderServicesPage() {
-  const { isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded, isTestMode, user } = useTestAuth();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -249,8 +251,19 @@ export default function ProviderServicesPage() {
               <Link href="/provider/appointments" className="text-neutral-600 hover:text-primary-600 transition-colors">Appointments</Link>
             </nav>
             <div className="flex items-center gap-4">
-              <SignedIn><UserButton afterSignOutUrl="/" /></SignedIn>
-              <SignedOut><Link href="/sign-in" className="btn-primary px-6 py-2">Sign In</Link></SignedOut>
+              <TestSignedIn>
+                {isTestMode ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                      {user?.firstName?.charAt(0) || 'T'}
+                    </div>
+                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Test Mode</span>
+                  </div>
+                ) : (
+                  <UserButton afterSignOutUrl="/" />
+                )}
+              </TestSignedIn>
+              <TestSignedOut><Link href="/sign-in" className="btn-primary px-6 py-2">Sign In</Link></TestSignedOut>
             </div>
           </div>
         </div>
@@ -285,7 +298,7 @@ export default function ProviderServicesPage() {
           </div>
         )}
 
-        <SignedIn>
+        <TestSignedIn>
           {/* Actions Bar */}
           <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-4 mb-6">
             <div className="flex items-center justify-between">
@@ -362,16 +375,16 @@ export default function ProviderServicesPage() {
               ))}
             </div>
           )}
-        </SignedIn>
+        </TestSignedIn>
 
-        <SignedOut>
+        <TestSignedOut>
           <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-12 text-center">
             <Clock className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-neutral-900 mb-2">Sign in to manage services</h3>
             <p className="text-neutral-600 mb-6">Please sign in to add and manage your services.</p>
             <Link href="/sign-in" className="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700">Sign In</Link>
           </div>
-        </SignedOut>
+        </TestSignedOut>
 
         {/* Add Modal */}
         {showAddModal && (

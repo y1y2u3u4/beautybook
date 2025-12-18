@@ -30,8 +30,10 @@ export async function GET(request: NextRequest) {
 
     // Try database first, fallback to mock data
     const dbAvailable = await isDatabaseAvailable();
+    let useDatabase = dbAvailable;
 
-    if (dbAvailable) {
+    if (useDatabase) {
+      try {
       // Use Prisma to query real database
       const whereClause: any = {};
 
@@ -87,6 +89,10 @@ export async function GET(request: NextRequest) {
       });
 
       return NextResponse.json({ providers, source: 'database' });
+      } catch (dbError) {
+        console.log('[API] Database query failed, falling back to mock data:', dbError);
+        useDatabase = false;
+      }
     }
 
     // Fallback to mock data

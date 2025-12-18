@@ -6,7 +6,11 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/providers(.*)',
+  '/about(.*)',
+  '/test-mode(.*)',
+  '/register(.*)',
   '/api/providers(.*)',
+  '/api/availability(.*)',
   '/api/webhooks(.*)',
 ]);
 
@@ -23,6 +27,17 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // 如果是公开路由，直接放行
+  if (isPublicRoute(req)) {
+    return;
+  }
+
+  // Check for test mode cookie (development only)
+  const testModeCookie = req.cookies.get('testMode');
+  if (process.env.NODE_ENV === 'development' && testModeCookie?.value === 'true') {
+    return; // Allow access in test mode
+  }
+
   // 如果是受保护的路由，要求登录
   if (isProtectedRoute(req)) {
     await auth.protect();

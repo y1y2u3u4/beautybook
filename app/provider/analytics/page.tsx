@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@clerk/nextjs';
+import { useTestAuth } from '@/hooks/useTestAuth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -35,7 +35,7 @@ interface Analytics {
 }
 
 export default function ProviderAnalytics() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, isTestMode } = useTestAuth();
   const router = useRouter();
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,10 +43,10 @@ export default function ProviderAnalytics() {
   const [dataSource, setDataSource] = useState<string>('');
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isTestMode) {
       router.push('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isTestMode, router]);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -71,10 +71,10 @@ export default function ProviderAnalytics() {
       }
     };
 
-    if (isSignedIn) {
+    if (isSignedIn || isTestMode) {
       fetchAnalytics();
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, isTestMode]);
 
   if (!isLoaded || loading) {
     return (
@@ -87,7 +87,7 @@ export default function ProviderAnalytics() {
     );
   }
 
-  if (!isSignedIn) {
+  if (!isSignedIn && !isTestMode) {
     return null;
   }
 

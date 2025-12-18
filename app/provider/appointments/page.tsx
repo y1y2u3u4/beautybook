@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@clerk/nextjs';
+import { useTestAuth } from '@/hooks/useTestAuth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -51,7 +51,7 @@ interface StaffMember {
 type AssignmentStrategy = 'balanced' | 'skill-based' | 'availability' | 'random';
 
 export default function ProviderAppointments() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, isTestMode, user } = useTestAuth();
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | AppointmentStatus>('all');
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
@@ -66,10 +66,11 @@ export default function ProviderAppointments() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    // Don't redirect in test mode
+    if (isLoaded && !isSignedIn && !isTestMode) {
       router.push('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isTestMode, router]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -104,10 +105,10 @@ export default function ProviderAppointments() {
       }
     };
 
-    if (isSignedIn) {
+    if (isSignedIn || isTestMode) {
       fetchData();
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, isTestMode]);
 
   const handleUpdateStatus = async (appointmentId: string, newStatus: AppointmentStatus) => {
     if (dataSource === 'mock') {
@@ -164,7 +165,7 @@ export default function ProviderAppointments() {
     );
   }
 
-  if (!isSignedIn) {
+  if (!isSignedIn && !isTestMode) {
     return null;
   }
 
