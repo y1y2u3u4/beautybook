@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { handleApiError, ValidationError, NotFoundError, UnauthorizedError } from '@/lib/api-utils';
+import { validateString, validateInt, validatePagination } from '@/lib/validation';
 
 /**
  * GET /api/reviews
@@ -10,17 +12,19 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const providerId = searchParams.get('providerId');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const offset = parseInt(searchParams.get('offset') || '0');
 
     if (!providerId) {
-      return NextResponse.json(
-        { error: 'providerId is required' },
-        { status: 400 }
-      );
+      throw new ValidationError('providerId is required');
     }
 
-    const [reviews, total] = await Promise.all([
+    const { page, pageSize, skip } = validatePagination(
+      searchParams.get('page') || undefined,
+      searchParams.get('limit') || searchParams.get('pageSize') || undefined
+    );
+    const offset = validateInt(searchParams.get('offset'), 'offset', { min: 0 }) || skip;
+
+    // Use Promise.all to optimize database queries
+    const [reviews, total, ratingDistribution] = await Promise.all([
       prisma.review.findMany({
         where: { providerId },
         include: {
@@ -35,19 +39,18 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { createdAt: 'desc' },
         skip: offset,
-        take: limit,
+        take: pageSize,
       }),
       prisma.review.count({ where: { providerId } }),
+      prisma.review.groupBy({
+        by: ['rating'],
+        where: { providerId },
+        _count: { rating: true },
+      }),
     ]);
 
-    // Calculate rating distribution
-    const ratingDistribution = await prisma.review.groupBy({
-      by: ['rating'],
-      where: { providerId },
-      _count: { rating: true },
-    });
-
-    const distribution: { [key: number]: number } = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    // Build rating distribution object
+    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     ratingDistribution.forEach((r) => {
       distribution[r.rating] = r._count.rating;
     });
@@ -57,17 +60,14 @@ export async function GET(request: NextRequest) {
       total,
       ratingDistribution: distribution,
       pagination: {
-        limit,
+        page,
+        pageSize,
         offset,
         hasMore: offset + reviews.length < total,
       },
     });
-  } catch (error: any) {
-    console.error('[API] Failed to get reviews:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to get reviews' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, 'Reviews GET');
   }
 }
 
@@ -80,10 +80,7 @@ export async function POST(request: NextRequest) {
     const { userId: clerkUserId } = await auth();
 
     if (!clerkUserId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      throw new UnauthorizedError('Authentication required');
     }
 
     const user = await prisma.user.findUnique({
@@ -91,29 +88,28 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      throw new NotFoundError('User not found');
     }
 
     const body = await request.json();
     const { providerId, rating, comment, appointmentId } = body;
 
     // Validate required fields
-    if (!providerId || !rating || !comment) {
-      return NextResponse.json(
-        { error: 'Missing required fields: providerId, rating, comment' },
-        { status: 400 }
-      );
+    validateString(providerId, 'providerId', { required: true });
+    validateString(comment, 'comment', { required: true, minLength: 10, maxLength: 2000 });
+    const validatedRating = validateInt(rating, 'rating', { min: 1, max: 5, required: true });
+
+    if (!validatedRating) {
+      throw new ValidationError('Rating must be between 1 and 5');
     }
 
-    // Validate rating range
-    if (rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { error: 'Rating must be between 1 and 5' },
-        { status: 400 }
-      );
+    // Verify provider exists
+    const provider = await prisma.providerProfile.findUnique({
+      where: { id: providerId },
+    });
+
+    if (!provider) {
+      throw new NotFoundError('Provider not found');
     }
 
     // Check if user has a completed appointment with this provider
@@ -135,10 +131,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingReview) {
-      return NextResponse.json(
-        { error: 'You have already reviewed this provider' },
-        { status: 400 }
-      );
+      throw new ValidationError('You have already reviewed this provider');
     }
 
     // Create the review
@@ -146,9 +139,9 @@ export async function POST(request: NextRequest) {
       data: {
         customerId: user.id,
         providerId,
-        rating,
+        rating: validatedRating,
         comment,
-        verified: !!completedAppointment, // Verified if has completed appointment
+        verified: !!completedAppointment,
       },
     });
 
@@ -171,11 +164,169 @@ export async function POST(request: NextRequest) {
       success: true,
       review,
     });
-  } catch (error: any) {
-    console.error('[API] Failed to create review:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create review' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, 'Reviews POST');
+  }
+}
+
+/**
+ * PUT /api/reviews
+ * Update a review (owner only)
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const { userId: clerkUserId } = await auth();
+
+    if (!clerkUserId) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUserId },
+    });
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    const body = await request.json();
+    const { reviewId, rating, comment } = body;
+
+    validateString(reviewId, 'reviewId', { required: true });
+
+    // Find the review and verify ownership
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      throw new NotFoundError('Review not found');
+    }
+
+    if (review.customerId !== user.id) {
+      throw new ValidationError('You can only update your own reviews');
+    }
+
+    // Build update data
+    const updateData: { rating?: number; comment?: string } = {};
+
+    if (rating !== undefined) {
+      const validatedRating = validateInt(rating, 'rating', { min: 1, max: 5 });
+      if (validatedRating) {
+        updateData.rating = validatedRating;
+      }
+    }
+
+    if (comment !== undefined) {
+      const validatedComment = validateString(comment, 'comment', { minLength: 10, maxLength: 2000 });
+      if (validatedComment) {
+        updateData.comment = validatedComment;
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      throw new ValidationError('No valid fields to update');
+    }
+
+    // Update the review
+    const updatedReview = await prisma.review.update({
+      where: { id: reviewId },
+      data: updateData,
+    });
+
+    // Update provider's average rating if rating changed
+    if (updateData.rating !== undefined) {
+      const aggregatedRatings = await prisma.review.aggregate({
+        where: { providerId: review.providerId },
+        _avg: { rating: true },
+        _count: { rating: true },
+      });
+
+      await prisma.providerProfile.update({
+        where: { id: review.providerId },
+        data: {
+          averageRating: aggregatedRatings._avg.rating || 0,
+          reviewCount: aggregatedRatings._count.rating,
+        },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      review: updatedReview,
+    });
+  } catch (error) {
+    return handleApiError(error, 'Reviews PUT');
+  }
+}
+
+/**
+ * DELETE /api/reviews
+ * Delete a review (owner only)
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { userId: clerkUserId } = await auth();
+
+    if (!clerkUserId) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUserId },
+    });
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    const { searchParams } = new URL(request.url);
+    const reviewId = searchParams.get('reviewId');
+
+    if (!reviewId) {
+      throw new ValidationError('reviewId is required');
+    }
+
+    // Find the review and verify ownership
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      throw new NotFoundError('Review not found');
+    }
+
+    if (review.customerId !== user.id) {
+      throw new ValidationError('You can only delete your own reviews');
+    }
+
+    const providerId = review.providerId;
+
+    // Delete the review
+    await prisma.review.delete({
+      where: { id: reviewId },
+    });
+
+    // Update provider's average rating
+    const aggregatedRatings = await prisma.review.aggregate({
+      where: { providerId },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    await prisma.providerProfile.update({
+      where: { id: providerId },
+      data: {
+        averageRating: aggregatedRatings._avg.rating || 0,
+        reviewCount: aggregatedRatings._count.rating,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Review deleted successfully',
+    });
+  } catch (error) {
+    return handleApiError(error, 'Reviews DELETE');
   }
 }

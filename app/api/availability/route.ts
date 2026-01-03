@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isDatabaseAvailable } from '@/lib/db-utils';
+import { handleApiError, ValidationError } from '@/lib/api-utils';
+import { validateDate, validateTimeString } from '@/lib/validation';
+import { createLogger } from '@/lib/logger';
 import { getMockTimeSlots, mockServices } from '@/lib/mock-db';
 
-// Check if database is available
-async function isDatabaseAvailable(): Promise<boolean> {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
-  } catch {
-    return false;
-  }
-}
+const logger = createLogger('Availability API');
 
 /**
  * GET /api/availability
@@ -20,18 +16,20 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const providerId = searchParams.get('providerId');
-    const date = searchParams.get('date');
+    const dateParam = searchParams.get('date');
     const serviceId = searchParams.get('serviceId');
 
-    if (!providerId || !date) {
-      return NextResponse.json(
-        { error: 'providerId and date are required' },
-        { status: 400 }
-      );
+    // Validate required parameters
+    if (!providerId) {
+      throw new ValidationError('providerId is required');
     }
 
-    // Parse the date
-    const requestedDate = new Date(date);
+    if (!dateParam) {
+      throw new ValidationError('date is required');
+    }
+
+    // Parse and validate the date
+    const requestedDate = validateDate(dateParam, 'date');
 
     // Try database first, fallback to mock data
     const dbAvailable = await isDatabaseAvailable();
@@ -70,14 +68,18 @@ export async function GET(request: NextRequest) {
           });
         }
 
-        // Note: Appointment conflict checking disabled - database schema mismatch
-        // Generate time slots based on availability only
-        const slots: { time: string; available: boolean }[] = [];
-        const [startHour, startMin] = availability.startTime.split(':').map(Number);
-        const [endHour, endMin] = availability.endTime.split(':').map(Number);
+        // Parse time strings safely
+        const startTimeParsed = validateTimeString(availability.startTime, 'startTime', true);
+        const endTimeParsed = validateTimeString(availability.endTime, 'endTime', true);
 
-        const startMinutes = startHour * 60 + startMin;
-        const endMinutes = endHour * 60 + endMin;
+        if (!startTimeParsed || !endTimeParsed) {
+          throw new ValidationError('Invalid availability time format');
+        }
+
+        // Generate time slots based on availability
+        const slots: { time: string; available: boolean }[] = [];
+        const startMinutes = startTimeParsed.hours * 60 + startTimeParsed.minutes;
+        const endMinutes = endTimeParsed.hours * 60 + endTimeParsed.minutes;
 
         // Generate 30-minute slots
         for (let mins = startMinutes; mins + serviceDuration <= endMinutes; mins += 30) {
@@ -99,7 +101,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
           available: true,
-          date: date,
+          date: dateParam,
           providerId,
           businessHours: {
             start: availability.startTime,
@@ -109,13 +111,15 @@ export async function GET(request: NextRequest) {
           source: 'database',
         });
       } catch (dbError) {
-        console.log('[API] Database query failed, falling back to mock data:', dbError);
+        logger.warn('Database query failed, falling back to mock data', {
+          error: dbError instanceof Error ? dbError.message : 'Unknown error',
+        });
         useDatabase = false;
       }
     }
 
     // Fallback to mock data
-    console.log('[API] Using mock data - database unavailable');
+    logger.debug('Using mock data - database unavailable');
 
     // Get service duration from mock data
     let serviceDuration = 60;
@@ -132,11 +136,7 @@ export async function GET(request: NextRequest) {
       ...result,
       source: 'mock',
     });
-  } catch (error: any) {
-    console.error('[API] Failed to get availability:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to get availability' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, 'Availability GET');
   }
 }

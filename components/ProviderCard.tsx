@@ -1,3 +1,6 @@
+'use client';
+
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { Star, MapPin, Clock, Shield, CheckCircle } from 'lucide-react';
 import { Provider } from '@/lib/types';
@@ -8,8 +11,13 @@ interface ProviderCardProps {
   provider: Provider;
 }
 
-export default function ProviderCard({ provider }: ProviderCardProps) {
-  const getNextAvailableText = () => {
+/**
+ * Provider card component with performance optimizations
+ * Uses React.memo to prevent unnecessary re-renders
+ */
+const ProviderCard = React.memo(function ProviderCard({ provider }: ProviderCardProps) {
+  // Memoize the next available text calculation
+  const nextAvailableText = useMemo(() => {
     if (!provider.nextAvailable) return 'View availability';
 
     const now = new Date();
@@ -19,7 +27,19 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
     if (hours < 24) return 'Available today';
     if (hours < 48) return 'Available tomorrow';
     return `Next: ${provider.nextAvailable.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-  };
+  }, [provider.nextAvailable]);
+
+  // Memoize the formatted price
+  const formattedPrice = useMemo(
+    () => formatCurrency(provider.priceRange.min),
+    [provider.priceRange.min]
+  );
+
+  // Memoize specialties to prevent array recreation
+  const displayedSpecialties = useMemo(
+    () => provider.specialty.slice(0, 3),
+    [provider.specialty]
+  );
 
   return (
     <div className="group card-glass hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer border-2 border-transparent hover:border-primary-200">
@@ -65,7 +85,7 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
 
           {/* Specialties */}
           <div className="flex flex-wrap gap-2 mt-4">
-            {provider.specialty.slice(0, 3).map((spec) => (
+            {displayedSpecialties.map((spec) => (
               <span key={spec} className="badge badge-info group-hover:bg-primary-100 transition-colors">
                 {spec}
               </span>
@@ -100,14 +120,14 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
             <div>
               <p className="text-sm text-neutral-500 mb-1">Starting from</p>
               <p className="text-2xl font-bold gradient-text">
-                {formatCurrency(provider.priceRange.min)}
+                {formattedPrice}
               </p>
             </div>
 
             <div className="flex items-center gap-4">
               <div className="text-right">
                 <p className="text-xs text-neutral-500 mb-1">Next Available</p>
-                <p className="text-sm font-semibold text-primary-600">{getNextAvailableText()}</p>
+                <p className="text-sm font-semibold text-primary-600">{nextAvailableText}</p>
               </div>
               <Link
                 href={`/providers/${provider.id}/book`}
@@ -121,4 +141,6 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
       </div>
     </div>
   );
-}
+});
+
+export default ProviderCard;

@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { isDatabaseAvailable } from '@/lib/db-utils';
+import { handleApiError, createErrorResponse, ValidationError, NotFoundError, UnauthorizedError } from '@/lib/api-utils';
+import { validateDate, validateString, validateTimeString } from '@/lib/validation';
 import { createNotification } from '@/lib/notifications/scheduler';
 import { mockAppointments, mockProviders, mockServices } from '@/lib/mock-db';
+import { Prisma, AppointmentStatus } from '@prisma/client';
 
-// Check if database is available
-async function isDatabaseAvailable(): Promise<boolean> {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
-  } catch {
-    return false;
-  }
+// Type definitions
+interface AppointmentWhereClause {
+  customerId?: string;
+  providerId?: string;
+  status?: AppointmentStatus;
 }
 
 /**
@@ -23,10 +24,7 @@ export async function GET(request: NextRequest) {
     const { userId: clerkUserId } = await auth();
 
     if (!clerkUserId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      throw new UnauthorizedError('Authentication required');
     }
 
     const dbAvailable = await isDatabaseAvailable();
@@ -38,30 +36,23 @@ export async function GET(request: NextRequest) {
       });
 
       if (!user) {
-        return NextResponse.json(
-          { error: 'User not found' },
-          { status: 404 }
-        );
+        throw new NotFoundError('User not found');
       }
 
       const { searchParams } = new URL(request.url);
       const status = searchParams.get('status');
-      const role = searchParams.get('role') || 'customer'; // 'customer' or 'provider'
+      const role = searchParams.get('role') || 'customer';
 
       // Build where clause based on role
-      let whereClause: any = {};
+      const whereClause: AppointmentWhereClause = {};
 
       if (role === 'provider') {
-        // Get provider profile
         const providerProfile = await prisma.providerProfile.findUnique({
           where: { userId: user.id },
         });
 
         if (!providerProfile) {
-          return NextResponse.json(
-            { error: 'Provider profile not found' },
-            { status: 404 }
-          );
+          throw new NotFoundError('Provider profile not found');
         }
 
         whereClause.providerId = providerProfile.id;
@@ -69,7 +60,7 @@ export async function GET(request: NextRequest) {
         whereClause.customerId = user.id;
       }
 
-      if (status) {
+      if (status && isValidAppointmentStatus(status)) {
         whereClause.status = status;
       }
 
@@ -138,14 +129,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Fallback to mock data
-    console.log('[API] Using mock data for appointments - database unavailable');
-
-    // Return mock appointments with enriched data
     const enrichedAppointments = mockAppointments.map(apt => {
       const provider = mockProviders.find(p => p.id === apt.providerId);
       const service = mockServices.find(s => s.id === apt.serviceId);
 
-      // Convert date and time to ISO string format
       const dateStr = apt.date.toISOString().split('T')[0];
       const startTimeISO = new Date(`${dateStr}T${apt.startTime}:00`).toISOString();
       const endTimeISO = new Date(`${dateStr}T${apt.endTime}:00`).toISOString();
@@ -181,12 +168,8 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ appointments: enrichedAppointments, source: 'mock' });
-  } catch (error: any) {
-    console.error('[API] Failed to get appointments:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to get appointments' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, 'Appointments GET');
   }
 }
 
@@ -199,22 +182,15 @@ export async function POST(request: NextRequest) {
     const { userId: clerkUserId } = await auth();
 
     if (!clerkUserId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      throw new UnauthorizedError('Authentication required');
     }
 
-    // Get user from database
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUserId },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found. Please complete your profile first.' },
-        { status: 404 }
-      );
+      throw new NotFoundError('User not found. Please complete your profile first.');
     }
 
     const body = await request.json();
@@ -228,11 +204,13 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!providerId || !serviceId || !date || !startTime) {
-      return NextResponse.json(
-        { error: 'Missing required fields: providerId, serviceId, date, startTime' },
-        { status: 400 }
-      );
+    validateString(providerId, 'providerId', { required: true });
+    validateString(serviceId, 'serviceId', { required: true });
+    const appointmentDate = validateDate(date, 'date');
+    const parsedTime = validateTimeString(startTime, 'startTime', true);
+
+    if (!parsedTime) {
+      throw new ValidationError('Invalid start time format');
     }
 
     // Get service details
@@ -242,29 +220,19 @@ export async function POST(request: NextRequest) {
     });
 
     if (!service) {
-      return NextResponse.json(
-        { error: 'Service not found' },
-        { status: 404 }
-      );
+      throw new NotFoundError('Service not found');
     }
 
     if (!service.active) {
-      return NextResponse.json(
-        { error: 'Service is no longer available' },
-        { status: 400 }
-      );
+      throw new ValidationError('Service is no longer available');
     }
 
-    // Verify provider matches
     if (service.providerId !== providerId) {
-      return NextResponse.json(
-        { error: 'Service does not belong to the specified provider' },
-        { status: 400 }
-      );
+      throw new ValidationError('Service does not belong to the specified provider');
     }
 
     // Calculate end time based on service duration
-    const [hours, minutes] = startTime.split(':').map(Number);
+    const { hours, minutes } = parsedTime;
     const startMinutes = hours * 60 + minutes;
     const endMinutes = startMinutes + service.duration;
     const endHours = Math.floor(endMinutes / 60);
@@ -272,7 +240,6 @@ export async function POST(request: NextRequest) {
     const endTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
 
     // Check for conflicting appointments
-    const appointmentDate = new Date(date);
     const existingAppointment = await prisma.appointment.findFirst({
       where: {
         providerId,
@@ -280,21 +247,18 @@ export async function POST(request: NextRequest) {
         status: { in: ['SCHEDULED', 'CONFIRMED'] },
         OR: [
           {
-            // New appointment starts during existing appointment
             AND: [
               { startTime: { lte: startTime } },
               { endTime: { gt: startTime } },
             ],
           },
           {
-            // New appointment ends during existing appointment
             AND: [
               { startTime: { lt: endTime } },
               { endTime: { gte: endTime } },
             ],
           },
           {
-            // New appointment encompasses existing appointment
             AND: [
               { startTime: { gte: startTime } },
               { endTime: { lte: endTime } },
@@ -305,10 +269,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingAppointment) {
-      return NextResponse.json(
-        { error: 'This time slot is no longer available. Please select another time.' },
-        { status: 409 }
-      );
+      throw new ValidationError('This time slot is no longer available. Please select another time.');
     }
 
     // Get provider's cancellation policy
@@ -333,8 +294,8 @@ export async function POST(request: NextRequest) {
         amount: service.price,
         paymentStatus: 'PENDING',
         cancellationPolicy,
-        depositRequired: service.price >= 100, // Require deposit for services $100+
-        depositAmount: service.price >= 100 ? service.price * 0.2 : null, // 20% deposit
+        depositRequired: service.price >= 100,
+        depositAmount: service.price >= 100 ? service.price * 0.2 : null,
         staffMemberId: staffMemberId || null,
       },
       include: {
@@ -366,7 +327,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Schedule confirmation notification
+    // Schedule notifications (don't fail if this fails)
     try {
       await createNotification({
         userId: user.id,
@@ -376,12 +337,10 @@ export async function POST(request: NextRequest) {
         scheduledFor: new Date(),
       });
 
-      // Schedule reminder notifications
       const appointmentDateTime = new Date(appointmentDate);
-      const [apptHours, apptMinutes] = startTime.split(':').map(Number);
-      appointmentDateTime.setHours(apptHours, apptMinutes);
+      appointmentDateTime.setHours(hours, minutes);
 
-      // 24 hours before
+      // 24 hours before reminder
       const reminder24h = new Date(appointmentDateTime.getTime() - 24 * 60 * 60 * 1000);
       if (reminder24h > new Date()) {
         await createNotification({
@@ -393,7 +352,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 2 hours before
+      // 2 hours before reminder
       const reminder2h = new Date(appointmentDateTime.getTime() - 2 * 60 * 60 * 1000);
       if (reminder2h > new Date()) {
         await createNotification({
@@ -405,8 +364,8 @@ export async function POST(request: NextRequest) {
         });
       }
     } catch (notificationError) {
-      console.error('[API] Failed to create notifications:', notificationError);
-      // Don't fail the appointment creation if notifications fail
+      // Log but don't fail the appointment creation
+      console.error('[Appointments] Failed to create notifications:', notificationError);
     }
 
     return NextResponse.json({
@@ -414,11 +373,14 @@ export async function POST(request: NextRequest) {
       appointment,
       message: 'Appointment booked successfully',
     });
-  } catch (error: any) {
-    console.error('[API] Failed to create appointment:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create appointment' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, 'Appointments POST');
   }
+}
+
+/**
+ * Type guard for valid appointment status
+ */
+function isValidAppointmentStatus(status: string): status is AppointmentStatus {
+  return ['SCHEDULED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(status);
 }

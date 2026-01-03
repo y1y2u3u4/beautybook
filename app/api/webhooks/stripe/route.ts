@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isDatabaseAvailable } from '@/lib/db-utils';
+import { handleApiError, createErrorResponse, ValidationError } from '@/lib/api-utils';
 import Stripe from 'stripe';
 
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -7,24 +9,20 @@ const stripe = process.env.STRIPE_SECRET_KEY
   : null;
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-// Check if database is available
-async function isDatabaseAvailable(): Promise<boolean> {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
-  } catch {
-    return false;
-  }
-}
+const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * POST /api/webhooks/stripe
  * Handle Stripe webhook events
+ *
+ * Security:
+ * - In production, webhook secret is REQUIRED
+ * - In development, allows direct parsing with warning
+ * - Signature verification prevents event spoofing
  */
 export async function POST(request: NextRequest) {
   if (!stripe) {
-    console.log('[Webhook] Stripe not configured');
+    // Demo mode - Stripe not configured
     return NextResponse.json({ received: true, mode: 'demo' });
   }
 
@@ -32,35 +30,42 @@ export async function POST(request: NextRequest) {
   const signature = request.headers.get('stripe-signature');
 
   if (!signature) {
-    return NextResponse.json(
-      { error: 'Missing stripe-signature header' },
-      { status: 400 }
-    );
+    return createErrorResponse('Missing stripe-signature header', 400);
+  }
+
+  // In production, webhook secret is REQUIRED
+  if (isProduction && !webhookSecret) {
+    console.error('[Webhook] CRITICAL: Webhook secret not configured in production');
+    return createErrorResponse('Webhook configuration error', 500);
   }
 
   let event: Stripe.Event;
 
   try {
     if (webhookSecret) {
+      // Verify signature with webhook secret
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } else {
-      // For development without webhook secret
+      // Development only: parse event directly with warning
+      console.warn(
+        '[Webhook] WARNING: No webhook secret configured. ' +
+        'This is only acceptable in development. ' +
+        'Set STRIPE_WEBHOOK_SECRET in production!'
+      );
       event = JSON.parse(body) as Stripe.Event;
-      console.log('[Webhook] No webhook secret configured - parsing event directly');
     }
-  } catch (err: any) {
-    console.error('[Webhook] Signature verification failed:', err.message);
-    return NextResponse.json(
-      { error: `Webhook signature verification failed: ${err.message}` },
-      { status: 400 }
-    );
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Webhook] Signature verification failed:', errorMessage);
+    return createErrorResponse('Webhook signature verification failed', 400);
   }
 
   const dbAvailable = await isDatabaseAvailable();
 
   if (!dbAvailable) {
-    console.log('[Webhook] Database unavailable - acknowledging event');
-    return NextResponse.json({ received: true, database: 'unavailable' });
+    // Log but still acknowledge to prevent Stripe retries piling up
+    console.warn('[Webhook] Database unavailable - acknowledging event without processing');
+    return NextResponse.json({ received: true, processed: false, reason: 'database_unavailable' });
   }
 
   try {
@@ -90,16 +95,13 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`[Webhook] Unhandled event type: ${event.type}`);
+        // Acknowledge unhandled events
+        break;
     }
 
     return NextResponse.json({ received: true });
-  } catch (error: any) {
-    console.error('[Webhook] Error processing event:', error);
-    return NextResponse.json(
-      { error: error.message || 'Webhook processing failed' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, 'Stripe Webhook');
   }
 }
 
@@ -108,11 +110,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const paymentType = session.metadata?.paymentType;
 
   if (!appointmentId) {
-    console.log('[Webhook] No appointmentId in checkout session metadata');
     return;
   }
-
-  console.log(`[Webhook] Processing checkout completed for appointment: ${appointmentId}`);
 
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
@@ -133,8 +132,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         status: 'CONFIRMED',
       },
     });
-
-    console.log(`[Webhook] Deposit marked as paid for appointment: ${appointmentId}`);
   } else {
     // Mark full payment as paid
     await prisma.appointment.update({
@@ -145,8 +142,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         status: 'CONFIRMED',
       },
     });
-
-    console.log(`[Webhook] Full payment marked as paid for appointment: ${appointmentId}`);
   }
 
   // Create payment received notification
@@ -163,6 +158,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       },
     });
   } catch (err) {
+    // Log but don't fail the webhook
     console.error('[Webhook] Failed to create notification:', err);
   }
 }
@@ -171,25 +167,19 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   const appointmentId = paymentIntent.metadata?.appointmentId;
 
   if (!appointmentId) {
-    console.log('[Webhook] No appointmentId in payment intent metadata');
     return;
   }
 
-  console.log(`[Webhook] Payment succeeded for appointment: ${appointmentId}`);
-
-  // Payment handling is done in checkout.session.completed
-  // This is a backup handler
+  // Payment handling is primarily done in checkout.session.completed
+  // This is a backup handler for edge cases
 }
 
 async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
   const appointmentId = paymentIntent.metadata?.appointmentId;
 
   if (!appointmentId) {
-    console.log('[Webhook] No appointmentId in payment intent metadata');
     return;
   }
-
-  console.log(`[Webhook] Payment failed for appointment: ${appointmentId}`);
 
   await prisma.appointment.update({
     where: { id: appointmentId },
@@ -203,11 +193,8 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   const appointmentId = charge.metadata?.appointmentId;
 
   if (!appointmentId) {
-    console.log('[Webhook] No appointmentId in charge metadata');
     return;
   }
-
-  console.log(`[Webhook] Charge refunded for appointment: ${appointmentId}`);
 
   await prisma.appointment.update({
     where: { id: appointmentId },

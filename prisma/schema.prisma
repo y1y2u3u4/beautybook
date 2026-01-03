@@ -167,6 +167,9 @@ model Service {
   // Relations
   appointments Appointment[]
 
+  // Indexes for query optimization
+  @@index([providerId, active])
+  @@index([category])
   @@map("services")
 }
 
@@ -222,6 +225,11 @@ model Appointment {
   // Relations
   notifications Notification[]
 
+  // Indexes for query optimization
+  @@index([providerId, date])
+  @@index([customerId, date])
+  @@index([status, date])
+  @@index([staffMemberId])
   @@map("appointments")
 }
 
@@ -256,6 +264,10 @@ model Review {
   createdAt   DateTime        @default(now()) @map("created_at")
   updatedAt   DateTime        @updatedAt @map("updated_at")
 
+  // Indexes for query optimization
+  @@index([providerId, rating])
+  @@index([customerId])
+  @@index([providerId, createdAt])
   @@map("reviews")
 }
 
@@ -268,6 +280,8 @@ model Favorite {
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@unique([userId, providerId])
+  @@index([userId])
+  @@index([providerId])
   @@map("favorites")
 }
 
@@ -285,6 +299,9 @@ model Availability {
   createdAt   DateTime        @default(now()) @map("created_at")
   updatedAt   DateTime        @updatedAt @map("updated_at")
 
+  // Indexes for query optimization
+  @@index([providerId, dayOfWeek])
+  @@index([providerId, active])
   @@map("availability")
 }
 

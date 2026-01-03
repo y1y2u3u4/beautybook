@@ -1,31 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isDatabaseAvailable } from '@/lib/db-utils';
+import { handleApiError } from '@/lib/api-utils';
+import { validateFloat, validateString } from '@/lib/validation';
+import { createLogger } from '@/lib/logger';
 import { mockProviders, mockServices } from '@/lib/mock-db';
+import { Prisma } from '@prisma/client';
 
-// Check if database is available
-async function isDatabaseAvailable(): Promise<boolean> {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
-  } catch {
-    return false;
-  }
+const logger = createLogger('Providers API');
+
+// Type for provider filter
+interface ProviderWhereClause {
+  city?: string;
+  state?: string;
+  averageRating?: { gte: number };
+  verified?: boolean;
+  priceMin?: { gte: number };
+  priceMax?: { lte: number };
+  specialties?: { hasSome: string[] };
+  OR?: Array<{
+    businessName?: { contains: string; mode: 'insensitive' };
+    title?: { contains: string; mode: 'insensitive' };
+    bio?: { contains: string; mode: 'insensitive' };
+  }>;
 }
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
 
-    // Parse filters from query parameters
+    // Parse and validate filters from query parameters
     const filters = {
       city: searchParams.get('city') || undefined,
       state: searchParams.get('state') || undefined,
       specialties: searchParams.get('specialties')?.split(',').filter(Boolean) || undefined,
-      minRating: searchParams.get('minRating') ? parseFloat(searchParams.get('minRating')!) : undefined,
-      minPrice: searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined,
-      maxPrice: searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined,
+      minRating: validateFloat(searchParams.get('minRating') || undefined, 'minRating', { min: 0, max: 5 }),
+      minPrice: validateFloat(searchParams.get('minPrice') || undefined, 'minPrice', { min: 0 }),
+      maxPrice: validateFloat(searchParams.get('maxPrice') || undefined, 'maxPrice', { min: 0 }),
       verified: searchParams.get('verified') === 'true' ? true : undefined,
-      search: searchParams.get('search') || undefined,
+      search: validateString(searchParams.get('search') || undefined, 'search', { maxLength: 100 }),
     };
 
     // Try database first, fallback to mock data
@@ -34,69 +47,71 @@ export async function GET(request: NextRequest) {
 
     if (useDatabase) {
       try {
-      // Use Prisma to query real database
-      const whereClause: any = {};
+        // Build type-safe where clause
+        const whereClause: ProviderWhereClause = {};
 
-      if (filters.city) {
-        whereClause.city = filters.city;
-      }
-      if (filters.state) {
-        whereClause.state = filters.state;
-      }
-      if (filters.minRating) {
-        whereClause.averageRating = { gte: filters.minRating };
-      }
-      if (filters.verified !== undefined) {
-        whereClause.verified = filters.verified;
-      }
-      if (filters.minPrice) {
-        whereClause.priceMin = { gte: filters.minPrice };
-      }
-      if (filters.maxPrice) {
-        whereClause.priceMax = { lte: filters.maxPrice };
-      }
-      if (filters.specialties && filters.specialties.length > 0) {
-        whereClause.specialties = { hasSome: filters.specialties };
-      }
-      if (filters.search) {
-        whereClause.OR = [
-          { businessName: { contains: filters.search, mode: 'insensitive' } },
-          { title: { contains: filters.search, mode: 'insensitive' } },
-          { bio: { contains: filters.search, mode: 'insensitive' } },
-        ];
-      }
+        if (filters.city) {
+          whereClause.city = filters.city;
+        }
+        if (filters.state) {
+          whereClause.state = filters.state;
+        }
+        if (filters.minRating) {
+          whereClause.averageRating = { gte: filters.minRating };
+        }
+        if (filters.verified !== undefined) {
+          whereClause.verified = filters.verified;
+        }
+        if (filters.minPrice) {
+          whereClause.priceMin = { gte: filters.minPrice };
+        }
+        if (filters.maxPrice) {
+          whereClause.priceMax = { lte: filters.maxPrice };
+        }
+        if (filters.specialties && filters.specialties.length > 0) {
+          whereClause.specialties = { hasSome: filters.specialties };
+        }
+        if (filters.search) {
+          whereClause.OR = [
+            { businessName: { contains: filters.search, mode: 'insensitive' } },
+            { title: { contains: filters.search, mode: 'insensitive' } },
+            { bio: { contains: filters.search, mode: 'insensitive' } },
+          ];
+        }
 
-      const providers = await prisma.providerProfile.findMany({
-        where: whereClause,
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              imageUrl: true,
+        const providers = await prisma.providerProfile.findMany({
+          where: whereClause,
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                imageUrl: true,
+              },
+            },
+            services: {
+              where: { active: true },
+              take: 5,
             },
           },
-          services: {
-            where: { active: true },
-            take: 5,
-          },
-        },
-        orderBy: [
-          { averageRating: 'desc' },
-          { reviewCount: 'desc' },
-        ],
-      });
+          orderBy: [
+            { averageRating: 'desc' },
+            { reviewCount: 'desc' },
+          ],
+        });
 
-      return NextResponse.json({ providers, source: 'database' });
+        return NextResponse.json({ providers, source: 'database' });
       } catch (dbError) {
-        console.log('[API] Database query failed, falling back to mock data:', dbError);
+        logger.warn('Database query failed, falling back to mock data', {
+          error: dbError instanceof Error ? dbError.message : 'Unknown error',
+        });
         useDatabase = false;
       }
     }
 
     // Fallback to mock data
-    console.log('[API] Using mock data - database unavailable');
+    logger.debug('Using mock data - database unavailable');
 
     let providers = [...mockProviders];
 
@@ -143,11 +158,7 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ providers: providersWithServices, source: 'mock' });
-  } catch (error: any) {
-    console.error('[API] Failed to fetch providers:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch providers' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, 'Providers GET');
   }
 }
